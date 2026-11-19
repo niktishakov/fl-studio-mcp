@@ -216,7 +216,28 @@ def handle_debug_core(params):
     return {"modules": mods}
 
 
+def handle_patterns_jump(params):
+    """Switch to pattern `index` (1-based); FL creates it if it is empty."""
+    idx = int(params.get("index", 1))
+    patterns.jumpToPattern(idx)
+    if params.get("name"):
+        patterns.setPatternName(idx, str(params["name"]))
+    num = patterns.patternNumber()
+    return {"current": num, "name": patterns.getPatternName(num),
+            "length_steps": patterns.getPatternLength(num),
+            "count": patterns.patternCount()}
+
+
+def handle_patterns_list(params):
+    return {"patterns": [{"index": i, "name": patterns.getPatternName(i),
+                          "length_steps": patterns.getPatternLength(i)}
+                         for i in range(1, patterns.patternCount() + 1)],
+            "current": patterns.patternNumber()}
+
+
 EXTRA_HANDLERS = {
+    "patterns.jump": handle_patterns_jump,
+    "patterns.list": handle_patterns_list,
     "debug.core": handle_debug_core,
     "__idle__": handle_idle,
     "tempo.setMap": handle_tempo_set_map,

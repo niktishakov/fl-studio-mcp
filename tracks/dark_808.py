@@ -6,10 +6,11 @@ So speed-ups, slow-downs and ramps are part of the project (they survive an
 export), no tempo automation clip needed. All parts are piano-roll notes.
 
 Channels (project "808 Beat"): 0 Kick, 1 Clap, 2 HiHat, 3 Snare,
-4 808 Astronomic (808 bass sample), 5 FL Keys (dirty), 6 PoiZone (saw synth).
+4 808 Astronomic (808 bass sample), 5 FL Keys (dirty), 6 PoiZone (saw synth),
+8 Hook Piano (clean FL Keys, plays the hook).
 
 Run:  uv run python tracks/dark_808.py [part ...]
-      parts: kick clap hat snare bass keys saw (default: all)
+      parts: kick clap hat snare bass keys saw piano (default: all)
 """
 
 from __future__ import annotations
@@ -29,7 +30,7 @@ from fl_studio_mcp.utils.connection import get_connection
 from fl_studio_mcp.utils.fl_trigger import trigger_fl_studio
 
 BASE_BPM = 85.0
-KICK, CLAP, HAT, SNARE, BASS, KEYS, SAW = range(7)
+KICK, CLAP, HAT, SNARE, BASS, KEYS, SAW, _TB, PIANO = range(9)  # 7 = unused Transistor Bass
 
 # (name, bars, beats per bar, tempo at start, tempo at end)
 SECTIONS = [
@@ -38,7 +39,8 @@ SECTIONS = [
     ("odd", 12, 5, 95, 95),     # 5/4, faster
     ("break", 4, 4, 70, 70),    # slows right down
     ("build", 2, 4, 70, 140),   # accelerando with a snare roll
-    ("drop", 16, 4, 140, 140),  # double speed, grows every 4 bars
+    ("cry", 2, 4, 85, 85),      # silence, the hook alone, then the drop hits
+    ("drop", 16, 4, 140, 140),  # double speed, the simple 8-bar drop twice
     ("outro", 4, 5, 85, 85),    # back to 5/4
 ]
 
@@ -48,8 +50,15 @@ CH = {"Fm": [53, 56, 60], "Gb": [54, 58, 61], "Ebm": [51, 54, 58],
 ROOT_808 = {"Fm": 53, "Gb": 54, "Ebm": 51, "C": 48, "Db": 49}
 PROG = {"intro": ["Fm", "Fm", "Db", "C"], "verse": ["Fm", "Fm", "Db", "C"],
         "odd": ["Fm", "Gb", "Ebm", "C"], "break": ["Db", "C", "Fm", "Fm"],
-        "build": ["Gb", "C"], "drop": ["Fm", "Fm", "Gb", "C"],
+        "build": ["Gb", "C"], "cry": ["Fm", "Fm"], "drop": ["Fm", "Fm", "Gb", "C"],
         "outro": ["Fm", "Gb", "Fm", "Fm"]}
+
+# The hook ("Fate 3 - cry", chosen by Nik): a high cry that holds, then
+# collapses to the bottom. Soft clean piano (channel 8). (midi, beat, len, vel)
+HOOK = [(73, 0.0, 1.5, 0.78), (72, 1.5, 0.45, 0.62), (65, 2.0, 0.45, 0.6),
+        (53, 2.5, 4.0, 0.72), (41, 2.5, 4.0, 0.55)]
+# Where it sounds: rarely, each time in a new context. (section, bar, beat)
+HOOK_AT = [("intro", 0, 0), ("break", 0, 0), ("cry", 0, 0.5), ("outro", 2, 0)]
 
 LEAD = [(72, 0, .5), (75, .5, .5), (77, 1, .75), (78, 1.75, .25), (77, 2, .5),
         (75, 2.5, .5), (72, 3, 1), (68, 4.5, .5), (70, 5, .5), (72, 5.5, 1.5),
@@ -101,7 +110,10 @@ def h(v, s=0.05):
 
 # ---------------------------------------------------------------- parts
 def parts():
-    P = {k: [] for k in (KICK, CLAP, HAT, SNARE, BASS, KEYS, SAW)}
+    P = {k: [] for k in (KICK, CLAP, HAT, SNARE, BASS, KEYS, SAW, PIANO)}
+    for sec, bar, beat in HOOK_AT:
+        for m, b, d, v in HOOK:
+            note(P[PIANO], m, sec, bar, beat + b, d, v)
     for sec, (bars, bpb) in INFO.items():
         for bar in range(bars):
             chord = PROG[sec][bar % len(PROG[sec])]
@@ -114,8 +126,6 @@ def parts():
                 kicks = [0, 0.75, 3] if bar % 2 == 0 else [0, 1.5, 3, 4.25]
             elif sec == "drop":
                 kicks = [0, 0.75, 2.5] if bar % 2 == 0 else [0, 1.5, 2.75, 3.5]
-                if bar >= 8:
-                    kicks = sorted(set(kicks + [3.75 if bar % 2 == 0 else 2.25]))
             elif sec == "build":
                 kicks = [0]
             elif sec == "outro":
@@ -144,23 +154,16 @@ def parts():
             elif sec == "drop":
                 for c in (1, 3):
                     note(P[CLAP], 60, sec, bar, c, 0.25, h(0.95))
-                    if bar >= 8:
-                        note(P[SNARE], 60, sec, bar, c, 0.1, h(0.55))
-                if bar >= 8 and bar % 2 == 1:
-                    note(P[SNARE], 60, sec, bar, 3.75, 0.1, h(0.45))
             elif sec == "outro" and bar < 3:
                 note(P[CLAP], 60, sec, bar, 2, 0.25, h(0.6))
             # ---- hats
             if sec in ("verse", "odd", "drop"):
-                step = 0.25 if sec == "drop" and bar >= 8 else 0.5
+                step = 0.5
                 for i in range(int(bpb / step)):
                     b = i * step
                     acc = b in (0, 3) if sec == "odd" else b % 1 == 0
-                    if step == 0.25 and b % 0.5:
-                        note(P[HAT], 60, sec, bar, b, 0.06, h(0.3))
-                        continue
                     note(P[HAT], 60, sec, bar, b, 0.1, h(0.62 if acc else 0.42))
-                if last4 or (sec == "drop" and (bar % 2 == 1 or bar >= 12)):
+                if last4 or (sec == "drop" and bar % 2 == 1):
                     # 16th-triplet roll on the last beat
                     for j in range(6):
                         note(P[HAT], 60, sec, bar, bpb - 1 + j / 6, 0.08, 0.35 + j * 0.06)
@@ -191,17 +194,20 @@ def parts():
                     note(P[KEYS], m, sec, bar, 0.02 * k, bpb - 0.1, h(kv))
             # ---- saw
             tones = CH[chord]
+            # Intro + verse: smeared, not staccato - each chord rings into the
+            # next one (small overlap) and is strummed instead of hit at once.
             if sec == "intro":
-                for b in (0, 2.5):
-                    for m in tones:
-                        note(P[SAW], m + 12, sec, bar, b, 0.4, h(0.55))
+                for b, d in ((0, 2.75), (2.5, 1.75)):
+                    for k, m in enumerate(tones):
+                        note(P[SAW], m + 12, sec, bar, b + 0.03 * k, d, h(0.5))
             elif sec == "break":  # low pad under the dirty keys
                 for m in tones:
                     note(P[SAW], m, sec, bar, 0, bpb - 0.1, h(0.45))
             elif sec == "verse":
-                for b, d in ((0, .25), (0.75, .25), (1.5, .5), (3, .25), (3.5, .25)):
-                    for m in tones:
-                        note(P[SAW], m + 12, sec, bar, b, d, h(0.62))
+                for b, d in ((0, .95), (0.75, .95), (1.5, 1.7), (3, .7), (3.5, .75)):
+                    for k, m in enumerate(tones):
+                        note(P[SAW], m + 12, sec, bar, b + 0.025 * k, d,
+                             h(0.62 if b in (0, 1.5) else 0.5))
             elif sec == "odd":
                 arp = tones + [tones[0] + 12, tones[1] + 12]
                 for i in range(bpb * 2):  # eighths, accents on 3+2 grouping
@@ -209,13 +215,12 @@ def parts():
                     note(P[SAW], arp[i % len(arp)] + 12, sec, bar, i * 0.5, 0.4,
                          h(0.75 if acc else 0.5))
             elif sec == "drop":
-                octs = {0: [0], 1: [12], 2: [0], 3: [0, 12]}[bar // 4]
+                # the original simple, rough drop (8 bars), played twice
+                octave = 12 if bar % 8 >= 4 else 0
                 for m, b, d in LEAD:
                     if (bar % 2) * 4 <= b < (bar % 2) * 4 + 4:
                         v = 0.85 if b % 1 == 0 else 0.7
-                        for o in octs:
-                            note(P[SAW], m + o, sec, bar, b - (bar % 2) * 4, d,
-                                 h(v if len(octs) == 1 else v * 0.8))
+                        note(P[SAW], m + octave, sec, bar, b - (bar % 2) * 4, d, h(v))
                 for b in (0.5, 1.5, 2.5, 3.5):  # offbeat stabs under the lead
                     for m in tones:
                         note(P[SAW], m, sec, bar, b, 0.2, h(0.45))
@@ -227,12 +232,20 @@ def parts():
 
 
 # ---------------------------------------------------------------- sound
-SAW_PARAMS = [(18, 0.6), (19, 0.42), (15, 0.7), (29, 0.62), (25, 0.22),
-              (31, 1.0), (38, 0.2), (34, 0.32), (39, 1.0), (42, 0.15)]
+# PoiZone: dirty but raw, not "spacey/tech": osc A saw + osc B pulse with
+# detune and a little noise. No ring mod, no delay, no chorus, narrow unison,
+# darker filter (Nik: "less cosmic, not too technological").
+SAW_PARAMS = [(0, 0.0), (4, 0.5), (2, 0.0039), (3, 0.0), (7, 0.12), (9, 0.06),
+              (15, 0.74), (29, 0.45), (18, 0.62), (19, 0.45), (45, 0.0),
+              (25, 0.22), (31, 0.0), (39, 0.0)]
 KEYS_PARAMS = [(14, 0.55), (2, 0.8), (4, 0.75), (11, 0.6), (12, 0.5)]
-VOLUMES = {KICK: 0.72, CLAP: 0.55, HAT: 0.36, SNARE: 0.45, BASS: 0.72, KEYS: 0.62, SAW: 0.55}
+VOLUMES = {KICK: 0.72, CLAP: 0.55, HAT: 0.36, SNARE: 0.45, BASS: 0.72, KEYS: 0.62, SAW: 0.45,
+           PIANO: 1.0}
+# Hook piano: second FL Keys, clean and soft (see tracks/hooks.py)
+PIANO_PARAMS = [(14, 0.0), (2, 0.42), (4, 0.6), (5, 0.5), (1, 0.75),
+                (7, 0.3), (11, 0.45), (12, 0.5), (0, 0.0)]
 NAMES = {"kick": KICK, "clap": CLAP, "hat": HAT, "snare": SNARE,
-         "bass": BASS, "keys": KEYS, "saw": SAW}
+         "bass": BASS, "keys": KEYS, "saw": SAW, "piano": PIANO}
 
 
 def send(c, action, params=None, timeout=5.0):
@@ -300,12 +313,17 @@ def main():
     c = get_connection()
     c.ensure_connected()
     send(c, "tempo.setMap", {"points": [], "enabled": False})
+    send(c, "transport.stop")
+    send(c, "patterns.jump", {"index": 1, "name": "Dark 808"})  # the track lives in pattern 1
     print("tempo", send(c, "transport.setTempo", {"bpm": BASE_BPM})["bpm"],
           "| length", round(TOTAL, 2), "beats =", round(TOTAL * 60 / BASE_BPM, 1), "s")
     for pi, v in SAW_PARAMS:
         send(c, "plugins.setParamValue", {"plugin_index": SAW, "param_index": pi, "value": v})
     for pi, v in KEYS_PARAMS:
         send(c, "plugins.setParamValue", {"plugin_index": KEYS, "param_index": pi, "value": v})
+    for pi, v in PIANO_PARAMS:
+        send(c, "plugins.setParamValue", {"plugin_index": PIANO, "param_index": pi, "value": v})
+    send(c, "channels.routeToMixer", {"channel_index": PIANO, "mixer_track": 8})
     send(c, "channels.routeToMixer", {"channel_index": SAW, "mixer_track": 7})
     send(c, "mixer.setTrackName", {"track": 7, "name": "Saw"})
     send(c, "mixer.setTrackVolume", {"track": 6, "volume": 0.8})
