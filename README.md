@@ -266,6 +266,31 @@ fl-studio-mcp
 
 ---
 
+## Extra tools (this fork)
+
+Goal: build a whole track with no mouse or GUI.
+
+| Tool | What it does |
+|---|---|
+| `fl_get_tempo` / `fl_set_tempo` | Read / set project BPM |
+| `fl_set_steps` | Write step-sequencer steps with per-step velocity, pan, pitch and swing (`shift` = delay inside the step in ticks). Clears the channel first so no stacked duplicate notes remain |
+| `fl_get_steps` / `fl_clear_steps` | Read steps with velocity / clear a channel reliably |
+| `fl_focus_piano_roll` | Point the piano roll at a channel (F7) and focus it |
+| `fl_write_notes` | Write piano-roll notes into any channel in one call |
+| `fl_get_pattern_info` | Current pattern number, name, length in steps |
+| `fl_save_project` | File > Save |
+
+Extra controller commands live in `fl_controller/mcp_extra.py`. The controller
+re-reads that file whenever it changes, so new commands work without
+"Reload script" in FL Studio. Example of a full arrangement built this way:
+`tracks/lofi_808.py`.
+
+Notes learned the hard way:
+- Step parameter 7 is the note's absolute time in ticks, not an offset.
+- Overwriting steps can leave two notes stacked on one step (+6 dB). Clear first.
+- Large writes: send steps in chunks (the MIDI/JSON bridge times out after 2 s).
+- On macOS FL Studio ignores `keystroke "y"` with Option held; use `key code 16`.
+
 ## Available Tools
 
 ### Connection

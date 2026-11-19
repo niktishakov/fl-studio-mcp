@@ -14,6 +14,9 @@ from typing import Callable
 # Delay after triggering to allow FL Studio to process
 TRIGGER_DELAY = 2.0
 
+# macOS bundle id of FL Studio (stable across yearly releases)
+FL_BUNDLE_ID = "com.image-line.flstudio"
+
 
 class FLStudioTrigger:
     """Handles triggering FL Studio's Piano Roll script via keystrokes.
@@ -40,20 +43,26 @@ class FLStudioTrigger:
         """Trigger FL Studio on macOS using osascript."""
         try:
             # Use osascript to send keystroke to FL Studio
-            script = '''
-            tell application "FL Studio"
+            # Address FL Studio by bundle id: the app name changes per release
+            # ("FL Studio 2025", "FL Studio 2026", ...), the bundle id does not.
+            script = f'''
+            tell application id "{FL_BUNDLE_ID}"
                 activate
             end tell
             delay 0.3
             tell application "System Events"
-                keystroke "y" using {command down, option down}
+                -- key code 16 = "Y". FL Studio ignores `keystroke "y"` with
+                -- Option held (it becomes "¥"), but accepts the raw key code.
+                key code 16 using {{command down, option down}}
             end tell
             '''
-            subprocess.run(
+            result = subprocess.run(
                 ["osascript", "-e", script],
                 capture_output=True,
                 timeout=10,
             )
+            if result.returncode != 0:
+                return self._trigger_macos_pynput()
             return True
         except subprocess.TimeoutExpired:
             return False
@@ -70,7 +79,7 @@ class FLStudioTrigger:
 
             # Focus FL Studio first
             subprocess.run(
-                ["osascript", "-e", 'tell application "FL Studio" to activate'],
+                ["osascript", "-e", f'tell application id "{FL_BUNDLE_ID}" to activate'],
                 capture_output=True,
                 timeout=5,
             )

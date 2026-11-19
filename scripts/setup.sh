@@ -98,6 +98,8 @@ CONTROLLER_DEST="$MCP_CONTROLLER_DIR/device_FLStudioMCP.py"
 
 if [[ -f "$CONTROLLER_SOURCE" ]]; then
     cp "$CONTROLLER_SOURCE" "$CONTROLLER_DEST"
+    # Hot-reloaded extra commands (no "Reload script" needed after edits)
+    cp "$PROJECT_DIR/fl_controller/mcp_extra.py" "$MCP_CONTROLLER_DIR/"
     echo -e "${GREEN}✓ Copied device_FLStudioMCP.py to FL Studio${NC}"
     echo "  Location: $MCP_CONTROLLER_DIR"
 else

@@ -25,10 +25,13 @@ from pathlib import Path
 
 # FL Studio API modules (available when running inside FL Studio)
 import channels
+import general
 import midi
 import mixer
+import patterns
 import plugins
 import transport
+import ui
 
 
 def _get_script_dir() -> Path:
@@ -228,6 +231,13 @@ def dispatch_command(action: str, params: dict) -> dict:
         return handle_plugins_prev_preset(params)
     elif action == "plugins.getColor":
         return handle_plugins_get_color(params)
+
+    # Extra commands (local extension: no mouse/GUI needed)
+    elif action == "extra.status":
+        handlers = _extra_handlers()
+        return {"actions": sorted(handlers), "error": _EXTRA["error"]}
+    elif action in _extra_handlers():
+        return _extra_handlers()[action](params)
 
     else:
         return {"error": f"Unknown action: {action}"}
@@ -885,3 +895,31 @@ def handle_plugins_get_color(params: dict) -> dict:
         color = plugins.getColor(index, -1, midi.GC_BackgroundColor, useGlobalIndex=use_global)
 
     return {"color": hex(color)}
+
+
+# =============================================================================
+# Hot-reloaded extra handlers: fl_controller/mcp_extra.py is re-read whenever
+# it changes, so new commands need no "Reload script" in FL Studio.
+# =============================================================================
+
+_EXTRA = {"mtime": None, "handlers": {}, "error": None}
+
+
+def _extra_handlers() -> dict:
+    path = SCRIPT_DIR / "mcp_extra.py"
+    try:
+        mtime = path.stat().st_mtime
+    except OSError:
+        return {}
+    if mtime != _EXTRA["mtime"]:
+        ns = {"channels": channels, "general": general, "midi": midi,
+              "mixer": mixer, "patterns": patterns, "plugins": plugins,
+              "transport": transport, "ui": ui, "__name__": "mcp_extra"}
+        try:
+            exec(compile(path.read_text(encoding="utf-8"), str(path), "exec"), ns)
+            _EXTRA["handlers"] = ns.get("EXTRA_HANDLERS", {})
+            _EXTRA["error"] = None
+        except Exception as e:  # keep old handlers, report error
+            _EXTRA["error"] = f"mcp_extra.py: {e}"
+        _EXTRA["mtime"] = mtime
+    return _EXTRA["handlers"]
