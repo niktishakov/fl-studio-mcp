@@ -57,8 +57,18 @@ PROG = {"intro": ["Fm", "Fm", "Db", "C"], "verse": ["Fm", "Fm", "Db", "C"],
 # collapses to the bottom. Soft clean piano (channel 8). (midi, beat, len, vel)
 HOOK = [(73, 0.0, 1.5, 0.78), (72, 1.5, 0.45, 0.62), (65, 2.0, 0.45, 0.6),
         (53, 2.5, 4.0, 0.72), (41, 2.5, 4.0, 0.55)]
-# Where it sounds: rarely, each time in a new context. (section, bar, beat)
-HOOK_AT = [("intro", 0, 0), ("break", 0, 0), ("cry", 0, 0.5), ("outro", 2, 0)]
+# Short form: just the cry Db -> C.
+HOOK_FRAG = [(73, 0.0, 1.0, 0.8), (72, 1.0, 1.5, 0.7)]
+# Where it sounds: (section, bar, beat, channel, "full"/"frag"). The stock clean
+# piano did not fit the track (Nik), so the dirty keys and the saw play it.
+HOOK_AT = [("intro", 0, 0, KEYS, "full"),
+           ("verse", 3, 2, KEYS, "frag"), ("verse", 6, 0, KEYS, "full"),
+           ("odd", 7, 3, SAW, "frag"), ("odd", 8, 0, SAW, "full"),
+           ("break", 0, 0, KEYS, "full"), ("cry", 0, 0.5, KEYS, "full"),
+           ("drop", 15, 2, SAW, "frag"), ("outro", 2, 0, KEYS, "full")]
+# Drop bars 9-12: a rough riff on the hook notes (2 bars, second one falls).
+DROP_RIFF = [[(73, 0, .75), (72, .75, .75), (65, 1.5, .5), (68, 2, .5), (65, 2.5, 1.5)],
+             [(73, 0, .75), (72, .75, .75), (65, 1.5, .5), (63, 2, .5), (60, 2.5, 1.5)]]
 
 LEAD = [(72, 0, .5), (75, .5, .5), (77, 1, .75), (78, 1.75, .25), (77, 2, .5),
         (75, 2.5, .5), (72, 3, 1), (68, 4.5, .5), (70, 5, .5), (72, 5.5, 1.5),
@@ -111,9 +121,10 @@ def h(v, s=0.05):
 # ---------------------------------------------------------------- parts
 def parts():
     P = {k: [] for k in (KICK, CLAP, HAT, SNARE, BASS, KEYS, SAW, PIANO)}
-    for sec, bar, beat in HOOK_AT:
-        for m, b, d, v in HOOK:
-            note(P[PIANO], m, sec, bar, beat + b, d, v)
+    for sec, bar, beat, ch, form in HOOK_AT:
+        boost = 1.1 if ch == KEYS else 1.0  # keys sit lower in the mix
+        for m, b, d, v in (HOOK if form == "full" else HOOK_FRAG):
+            note(P[ch], m, sec, bar, beat + b, d, min(1.0, v * boost))
     for sec, (bars, bpb) in INFO.items():
         for bar in range(bars):
             chord = PROG[sec][bar % len(PROG[sec])]
@@ -209,18 +220,42 @@ def parts():
                         note(P[SAW], m + 12, sec, bar, b + 0.025 * k, d,
                              h(0.62 if b in (0, 1.5) else 0.5))
             elif sec == "odd":
+                # develops every 4 bars instead of one arp for 12 bars
                 arp = tones + [tones[0] + 12, tones[1] + 12]
-                for i in range(bpb * 2):  # eighths, accents on 3+2 grouping
-                    acc = i in (0, 6)
-                    note(P[SAW], arp[i % len(arp)] + 12, sec, bar, i * 0.5, 0.4,
-                         h(0.75 if acc else 0.5))
+                if bar < 4:      # 1: rising arp
+                    for i in range(bpb * 2):
+                        acc = i in (0, 6)
+                        note(P[SAW], arp[i % len(arp)] + 12, sec, bar, i * 0.5, 0.4,
+                             h(0.75 if acc else 0.5))
+                elif bar < 8:    # 2: falling arp, accents jump an octave
+                    for i in range(bpb * 2):
+                        if bar == 7 and i >= 6:
+                            break  # room for the hook fragment
+                        acc = i in (0, 6)
+                        m = arp[::-1][i % len(arp)] + 12 + (12 if acc else 0)
+                        note(P[SAW], m, sec, bar, i * 0.5, 0.4, h(0.78 if acc else 0.48))
+                elif bar < 10:   # 3: the hook on top (HOOK_AT), low 3+2 stabs under
+                    for b in (0, 1.5, 3):
+                        for m in tones:
+                            note(P[SAW], m, sec, bar, b, 0.3, h(0.42))
+                else:            # 4: thin arp, only accents, growing
+                    for i in (0, 2, 4, 6, 8):
+                        v = 0.5 + 0.08 * ((bar - 10) * 5 + i // 2)
+                        note(P[SAW], arp[i % len(arp)] + 12, sec, bar, i * 0.5, 0.45, h(v))
             elif sec == "drop":
-                # the original simple, rough drop (8 bars), played twice
-                octave = 12 if bar % 8 >= 4 else 0
-                for m, b, d in LEAD:
-                    if (bar % 2) * 4 <= b < (bar % 2) * 4 + 4:
-                        v = 0.85 if b % 1 == 0 else 0.7
-                        note(P[SAW], m + octave, sec, bar, b - (bar % 2) * 4, d, h(v))
+                # simple and rough; bars 1-8 original lead, 9-12 a riff on the
+                # hook, 13-16 lead an octave up (hook fragment at the very end)
+                if 8 <= bar < 12:
+                    for m, b, d in DROP_RIFF[bar % 2]:
+                        note(P[SAW], m, sec, bar, b, d, h(0.85 if b % 1 == 0 else 0.72))
+                else:
+                    octave = 12 if bar >= 12 or bar % 8 >= 4 else 0
+                    for m, b, d in LEAD:
+                        if bar == 15 and b >= 6:
+                            continue  # room for the hook fragment
+                        if (bar % 2) * 4 <= b < (bar % 2) * 4 + 4:
+                            v = 0.85 if b % 1 == 0 else 0.7
+                            note(P[SAW], m + octave, sec, bar, b - (bar % 2) * 4, d, h(v))
                 for b in (0.5, 1.5, 2.5, 3.5):  # offbeat stabs under the lead
                     for m in tones:
                         note(P[SAW], m, sec, bar, b, 0.2, h(0.45))
@@ -331,6 +366,7 @@ def main():
     for ch, v in VOLUMES.items():
         send(c, "channels.setVolume", {"index": ch, "volume": v})
     P = parts()
+    send(c, "channels.mute", {"index": PIANO, "mute": True})  # stock piano: out of style
     for ch in want:
         r = write_notes(c, ch, P[ch])
         print(ch, "notes", r["notes_added"], "deleted", r["notes_deleted"])
