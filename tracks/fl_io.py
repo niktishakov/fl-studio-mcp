@@ -58,7 +58,7 @@ def run_piano_roll(requests):
     _clear_request_file()  # a leftover queue would be appended to (duplicate notes)
     _write_request(requests)
     trigger_fl_studio(delay=0.2)
-    for _ in range(50):
+    for _ in range(80):  # up to 8 s: 400+ notes take longer than 5 s (retries cost more)
         # an empty queue produces no response file, only the state export
         if state.exists() and (resp.exists() or not requests):
             try:

@@ -43,7 +43,8 @@ SECTIONS = [
     # loud, clear hook - no calming, no slowing down (Nik). Keys only, no bass.
     ("prelude", 8, 4, [72, 72, 72, 72, 74, 76, 76, 76], None),
     ("intro", 4, 4, 85, 85),
-    ("verse", 8, 4, 85, 85),
+    # verse -> odd (5/4) transition: last bar speeds up 85 -> 95 (no tempo jump)
+    ("verse", 8, 4, [85] * 7 + [(85, 95)], None),
     ("odd", 12, 5, 95, 95),     # 5/4, faster
     ("break", 4, 4, 70, 70),    # slows right down
     ("build", 1, 4, 140, 140),  # one bar of snare roll already at 140, no waiting
@@ -179,7 +180,13 @@ def parts():
             root = ROOT_808[chord]
             last4 = bar % 4 == 3
             # ---- kick + 808 pattern (beats)
-            if sec == "verse":
+            # last 2 verse bars hint at the 5/4 limp (3+3+2); the very last
+            # beat is a "breath" (no kick/bass/hats/saw), only a snare fill
+            pre_odd = sec == "verse" and bar >= 6
+            breath = sec == "verse" and bar == 7
+            if pre_odd:
+                kicks = [0, 1.5] if breath else [0, 1.5, 3]
+            elif sec == "verse":
                 kicks = [0, 0.75, 2.5] if bar % 2 == 0 else [0, 1.75, 2.5, 3.25]
             elif sec == "odd":
                 kicks = [0, 0.75, 3] if bar % 2 == 0 else [0, 1.5, 3, 4.25]
@@ -195,7 +202,7 @@ def parts():
                 note(P[KICK], 60, sec, bar, k, 0.25, h(0.85 if k == 0 else 0.72))
             # 808: follow the kick, hold until the next hit
             if sec in ("verse", "odd", "drop", "outro"):
-                hits = kicks + [bpb]
+                hits = kicks + [3 if breath else bpb]
                 for a, b in zip(hits, hits[1:]):
                     note(P[BASS], root, sec, bar, a, b - a, h(0.8 if a == 0 else 0.65))
             elif sec == "break" and bar == 3:  # tension: every beat, growing
@@ -223,9 +230,15 @@ def parts():
                 step = 0.5
                 for i in range(int(bpb / step)):
                     b = i * step
-                    acc = b in (0, 3) if sec == "odd" else b % 1 == 0
+                    if breath and b >= 3:
+                        break
+                    acc = (b in (0, 3) if sec == "odd" else
+                           b in (0, 1.5, 3) if pre_odd else b % 1 == 0)  # 3+3+2
                     note(P[HAT], 60, sec, bar, b, 0.1, h(0.62 if acc else 0.42))
-                if last4 or (sec == "drop" and bar % 2 == 1):
+                if breath:  # snare fill in the breath, 16ths, growing
+                    for j in range(4):
+                        note(P[SNARE], 60, sec, bar, 3 + j / 4, 0.06, 0.45 + 0.12 * j)
+                elif last4 or (sec == "drop" and bar % 2 == 1):
                     # 16th-triplet roll on the last beat
                     for j in range(6):
                         note(P[HAT], 60, sec, bar, bpb - 1 + j / 6, 0.08, 0.35 + j * 0.06)
@@ -292,6 +305,10 @@ def parts():
                         note(P[SAW], m, sec, bar, i * 0.5, 0.5, 0.5 + 0.06 * i)
             elif sec == "verse":
                 for b, d in ((0, .95), (0.75, .95), (1.5, 1.7), (3, .7), (3.5, .75)):
+                    if bar == 7 and b >= 3:
+                        continue  # the breath before the 5/4
+                    if bar == 7 and b == 1.5:
+                        d = 1.45  # stop exactly at the breath
                     for k, m in enumerate(tones):
                         note(P[SAW], m + 12, sec, bar, b + 0.025 * k, d,
                              h(0.62 if b in (0, 1.5) else 0.5))
