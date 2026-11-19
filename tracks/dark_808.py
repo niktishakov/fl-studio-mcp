@@ -35,7 +35,7 @@ from fl_io import (  # noqa: E402
 )
 
 BASE_BPM = 85.0
-KICK, CLAP, HAT, SNARE, BASS, KEYS, SAW, _TB, PIANO, SAW2, FLEX, RISER = range(12)  # 7 unused
+KICK, CLAP, HAT, SNARE, BASS, KEYS, SAW, _TB, PIANO, SAW2, FLEX, RISER, DOWN = range(13)
 # SAW2 = "PoiZone #2": same notes as the saw, angrier sound, plays the drop only
 
 # (name, bars, beats per bar, tempo at start, tempo at end)
@@ -178,7 +178,7 @@ def h(v, s=0.05):
 
 # ---------------------------------------------------------------- parts
 def parts():
-    P = {k: [] for k in (KICK, CLAP, HAT, SNARE, BASS, KEYS, SAW, PIANO, SAW2, FLEX, RISER)}
+    P = {k: [] for k in (KICK, CLAP, HAT, SNARE, BASS, KEYS, SAW, PIANO, SAW2, FLEX, RISER, DOWN)}
     for rep in (0, 1):  # the prelude melody twice, doubled an octave below
         for i, (m, b, d, v) in enumerate(PRELUDE):
             last = i == len(PRELUDE) - 1
@@ -226,6 +226,8 @@ def parts():
                     kicks = [0, 0.75, 2.5, 3.5]
             elif sec == "drop":
                 kicks = [0, 0.75, 2.5] if bar % 2 == 0 else [0, 1.5, 2.75, 3.5]
+            elif sec == "intro" and bar == 3:  # half-time preview of the verse groove
+                kicks = [0, 2, 3.5]
             elif sec == "break":  # bars 5-8 rebuild the groove step by step
                 kicks = {4: [0, 2], 5: [0, 2, 2.75], 6: [0, 1, 2, 2.75, 3.5],
                          7: [0, 1, 2, 3, 3.5]}.get(bar, [])
@@ -291,9 +293,13 @@ def parts():
                     # 16th-triplet roll on the last beat
                     for j in range(6):
                         note(P[HAT], 60, sec, bar, bpb - 1 + j / 6, 0.08, 0.35 + j * 0.06)
-            elif sec == "intro" and bar >= 2:
+            elif sec == "intro" and bar == 2:
                 for b in range(4):
                     note(P[HAT], 60, sec, bar, b, 0.1, h(0.4))
+            elif sec == "intro" and bar == 3:  # build into the verse: 16ths growing
+                for i in range(16):
+                    note(P[HAT], 60, sec, bar, i / 4, 0.06,
+                         0.45 + 0.028 * i + (0.1 if i % 4 == 0 else 0))
             elif sec == "break":
                 if bar < 4:      # emotion: soft off-beats
                     for b in range(4):
@@ -458,6 +464,18 @@ def parts():
         P[CLAP].append({**n, "midi": CLAP_PITCH, "time": round(n["time"] + flam, 4),
                         "velocity": round(n["velocity"] * 0.6, 3)})
         P[SNARE].append({**n, "midi": 60, "velocity": round(n["velocity"] * 0.4, 3)})
+    # Transitions (Nik: "too abrupt, sounds like an FL project"):
+    # risers into a part, impacts on its first beat, downlifters when energy drops
+    note(P[RISER], 60, "intro", 3, 0, 3.95, 0.85)            # intro -> verse
+    for j in range(4):                                        # + snare fill
+        note(P[SNARE], 60, "intro", 3, 3 + j / 4, 0.06, 0.6 + 0.1 * j)
+    for sec, hits in (("intro", ((BASS, ROOT_808["Fm"], 0.95), (HAT, 60, 0.6))),
+                      ("verse", ((CLAP, 60, 0.85), (SNARE, 60, 0.55), (HAT, 60, 0.7))),
+                      ("break", ((BASS, ROOT_808["Db"], 0.85), (HAT, 60, 0.5)))):
+        for ch, m, v in hits:                                 # impacts on bar 1
+            note(P[ch], m, sec, 0, 0, 0.3 if ch != BASS else 2, v)
+    note(P[DOWN], 60, "break", 0, 0, 6, 0.7)                  # verse -> break
+    note(P[DOWN], 60, "outro", 4, 0, 4, 0.6)                  # outro: drums leave
     # Pad (FLEX) under the piano: one chord per bar
     for sec, bars in (("prelude", range(8)), ("break", range(4)), ("outro", range(4, 8))):
         for bar in bars:
@@ -515,7 +533,12 @@ PAD_PRESET = 31  # "PAD Ashword"
 PAD_FX = {"Space": 0.0, "Phaser": 0.0, "Chorus": 0.0, "Delay": 0.0, "Delay mix": 0.0,
           "Reverb": 1.0, "Reverb mix": 0.18}
 VOLUMES = {KICK: 0.72, CLAP: 0.55, HAT: 0.36, SNARE: 0.45, BASS: 0.72, KEYS: 0.62, SAW: 0.45,
-           PIANO: 0.8, SAW2: 0.45, FLEX: 0.55, RISER: 0.6}  # PIANO = "Hook Keys"
+           PIANO: 0.8, SAW2: 0.45, FLEX: 0.55, RISER: 0.6, DOWN: 0.55}  # PIANO = Hook Keys
+# Downlifter (PoiZone #4): noise from an open filter that closes (-100% filter
+# envelope, ~3 s) while the volume fades (~2.5 s).
+DOWN_PARAMS = [(9, 1.0), (18, 0.9), (19, 0.3), (10, 0.0), (11, 0.0), (12, 0.5), (13, 0.0),
+               (22, 0.0), (23, 0.6), (24, 0.0), (25, 0.3), (29, 0.4), (15, 0.75),
+               (31, 0.0), (39, 0.0)]
 # Riser (PoiZone #3): pure noise, closed filter opened by a slow filter envelope
 # (attack ~ the riser's length), soft fade-in; no delay/chorus.
 RISER_PARAMS = [(9, 1.0), (18, 0.08), (19, 0.5), (10, 1.0), (11, 0.6), (13, 1.0),
@@ -529,7 +552,7 @@ PIANO_PARAMS = [(14, 0.0), (2, 0.42), (4, 0.6), (5, 0.5), (1, 0.75),
                 (7, 0.3), (11, 0.45), (12, 0.5), (0, 0.0)]
 NAMES = {"kick": KICK, "clap": CLAP, "hat": HAT, "snare": SNARE,
          "bass": BASS, "keys": KEYS, "saw": SAW, "piano": PIANO, "saw2": SAW2,
-         "flex": FLEX, "riser": RISER}
+         "flex": FLEX, "riser": RISER, "down": DOWN}
 
 
 def main():
@@ -578,6 +601,11 @@ def main():
     cmds += [("channels.setVolume", {"index": ch, "volume": v}) for ch, v in VOLUMES.items()]
     cmds += [("plugins.setParamValue", {"plugin_index": RISER, "param_index": pi, "value": v})
              for pi, v in RISER_PARAMS]
+    cmds += [("plugins.setParamValue", {"plugin_index": DOWN, "param_index": pi, "value": v})
+             for pi, v in DOWN_PARAMS]
+    cmds += [("channels.setName", {"index": DOWN, "name": "Downlifter"}),
+             ("channels.routeToMixer", {"channel_index": DOWN, "mixer_track": 12}),
+             ("mixer.setTrackName", {"track": 12, "name": "Downlifter"})]
     cmds += [("channels.setName", {"index": RISER, "name": "Riser"}),
              ("channels.routeToMixer", {"channel_index": RISER, "mixer_track": 11}),
              ("mixer.setTrackName", {"track": 11, "name": "Riser"})]
