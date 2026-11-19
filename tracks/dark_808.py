@@ -10,7 +10,7 @@ Channels (project "808 Beat"): 0 Kick, 1 Clap, 2 HiHat, 3 Snare,
 8 Hook Piano (clean FL Keys, plays the hook).
 
 Run:  uv run python tracks/dark_808.py [part ...]
-      parts: kick clap hat snare bass keys saw piano (default: all)
+      parts: kick clap hat snare bass keys saw piano saw2 (default: all)
 """
 
 from __future__ import annotations
@@ -30,11 +30,14 @@ from fl_studio_mcp.utils.connection import get_connection
 from fl_studio_mcp.utils.fl_trigger import trigger_fl_studio
 
 BASE_BPM = 85.0
-KICK, CLAP, HAT, SNARE, BASS, KEYS, SAW, _TB, PIANO = range(9)  # 7 = unused Transistor Bass
+KICK, CLAP, HAT, SNARE, BASS, KEYS, SAW, _TB, PIANO, SAW2 = range(10)  # 7 unused TB
+# SAW2 = "PoiZone #2": same notes as the saw, angrier sound, plays the drop only
 
 # (name, bars, beats per bar, tempo at start, tempo at end)
 SECTIONS = [
-    ("prelude", 4, 4, 72, 72),  # "end of the world": dirty keys, flows into the hook
+    # "end of the world" twice: 2nd time pushes (72 -> 76), last bar calms
+    # down (76 -> 62) into the hook. Dirty keys only, no bass.
+    ("prelude", 8, 4, [72, 72, 72, 72, 74, 76, 76, (76, 62)], None),
     ("intro", 4, 4, 85, 85),
     ("verse", 8, 4, 85, 85),
     ("odd", 12, 5, 95, 95),     # 5/4, faster
@@ -48,7 +51,7 @@ SECTIONS = [
 CH = {"Fm": [53, 56, 60], "Gb": [54, 58, 61], "Ebm": [51, 54, 58],
       "C": [52, 55, 60], "Db": [53, 56, 61], "Bbm": [53, 58, 61]}
 ROOT_808 = {"Fm": 53, "Gb": 54, "Ebm": 51, "C": 48, "Db": 49, "Bbm": 46}
-PROG = {"prelude": ["Fm", "Db", "Bbm", "C"], "intro": ["Fm", "Fm", "Db", "C"],
+PROG = {"prelude": ["Fm", "Db", "Bbm", "C"] * 2, "intro": ["Fm", "Fm", "Db", "C"],
         "verse": ["Fm", "Fm", "Db", "C"],
         # break ends on C (dominant): the ear wants to land - on the drop
         "odd": ["Fm", "Gb", "Ebm", "C"], "break": ["Db", "C", "Fm", "C"],
@@ -65,7 +68,7 @@ HOOK_FRAG = [(73, 0.0, 1.0, 0.8), (72, 1.0, 1.5, 0.7)]
 # piano did not fit the track (Nik), so the dirty keys and the saw play it.
 # Prelude: the hook closes the melody; its last (low F) note lands exactly on
 # the first beat of the main part.
-HOOK_AT = [("prelude", 3, 4.0 - HOOK[-1][1], KEYS, "full"),
+HOOK_AT = [("prelude", 7, 4.0 - HOOK[-1][1], KEYS, "full"),
            ("verse", 3, 2, KEYS, "frag"), ("verse", 6, 0, KEYS, "full"),
            ("odd", 7, 3, SAW, "frag"), ("odd", 8, 0, SAW, "full"),
            ("break", 0, 0, KEYS, "full"),
@@ -99,7 +102,12 @@ def build_timeline():
         for i in range(n + 1):
             beats.append(pos)
             if i < n:
-                tempo = t0 + (t1 - t0) * (i / max(1, n - 1))
+                if isinstance(t0, list):  # per-bar tempo: number or (start, end) ramp
+                    tb = t0[i // bpb]
+                    a, z = tb if isinstance(tb, tuple) else (tb, tb)
+                    tempo = a + (z - a) * ((i % bpb) / max(1, bpb - 1))
+                else:
+                    tempo = t0 + (t1 - t0) * (i / max(1, n - 1))
                 pos += BASE_BPM / tempo
         starts[name] = beats
     return starts, pos
@@ -132,12 +140,27 @@ def h(v, s=0.05):
 
 # ---------------------------------------------------------------- parts
 def parts():
-    P = {k: [] for k in (KICK, CLAP, HAT, SNARE, BASS, KEYS, SAW, PIANO)}
-    for m, b, d, v in PRELUDE:  # melody doubled an octave below
-        for o in (0, -12):
-            note(P[KEYS], m + o, "prelude", 0, b, d, min(1.0, v * 1.12 if o == 0 else v))
+    P = {k: [] for k in (KICK, CLAP, HAT, SNARE, BASS, KEYS, SAW, PIANO, SAW2)}
+    for rep in (0, 1):  # the prelude melody twice, doubled an octave below
+        for i, (m, b, d, v) in enumerate(PRELUDE):
+            last = i == len(PRELUDE) - 1
+            if rep == 0 and last:
+                d = 2.5  # 1st time: Eb, then two linking notes lead into pass 2
+                for lm, lb, ld in ((68, 14.5, 0.75), (67, 15.25, 0.75)):  # Ab, G -> F
+                    for o in (0, -12):
+                        note(P[KEYS], lm + o, "prelude", 0, lb, ld,
+                             min(1.0, v * 1.12) * (1 if o == 0 else 0.88))
+            octs, vel = (0, -12), min(1.0, v * 1.12)
+            if rep == 1 and not last:  # 2nd time: denser (three octaves), NOT louder
+                octs, vel = (12, 0, -12), min(1.0, v * 1.12) * 0.88
+            for o in octs:
+                note(P[KEYS], m + o, "prelude", 0, rep * 16 + b, d,
+                     vel if o == 0 else vel * 0.88)
     for sec, bar, beat, ch, form in HOOK_AT:
-        boost = 1.1 if ch == KEYS else 1.0  # keys sit lower in the mix
+        # keys hooks go to "Hook Keys" (ch 8): same dirty sound, own level -
+        # the hook stands out without touching the rest of the keys
+        boost = 1.1 if ch == KEYS else 1.2
+        ch = PIANO if ch == KEYS else ch
         for m, b, d, v in (HOOK if form == "full" else HOOK_FRAG):
             note(P[ch], m, sec, bar, beat + b, d, min(1.0, v * boost))
     for sec, (bars, bpb) in INFO.items():
@@ -218,8 +241,20 @@ def parts():
             # ---- dirty keys: break and outro chords, sustained
             if sec == "prelude":  # no bass here: a fat piano fills the space
                 r, t, f = CH[chord]
-                for k, m in enumerate([r - 12, r, t, f, r + 12, t + 12]):
-                    note(P[KEYS], m, sec, bar, 0.03 * k, 3.95, h(0.9, 0.04))
+                voicing = [r - 12, r, t, f, r + 12, t + 12]
+                if bar < 4:          # 1st pass: wide sustained chords
+                    for k, m in enumerate(voicing):
+                        note(P[KEYS], m, sec, bar, 0.03 * k, 3.95, h(0.9, 0.04))
+                elif bar < 7:        # 2nd pass: more notes, same strength -
+                    for m in voicing[:2]:  # low sustain + pulsing 8th chords
+                        note(P[KEYS], m, sec, bar, 0, 3.95, h(0.9, 0.04))
+                    for q in range(8):
+                        for k, m in enumerate(voicing[2:] + [f + 12]):
+                            note(P[KEYS], m, sec, bar, q * 0.5 + 0.02 * k, 0.45,
+                                 h(0.67 if q % 2 else 0.75, 0.03))  # measured: same RMS as pass 1
+                else:                # last bar: calm = sparse, one sustained chord
+                    for k, m in enumerate(voicing):
+                        note(P[KEYS], m, sec, bar, 0.04 * k, 3.95, h(0.9, 0.04))
             if sec in ("break", "outro", "build"):
                 kv = 0.85 if sec == "break" else 0.72
                 for k, m in enumerate(CH[chord] + [CH[chord][0] + 12]):
@@ -294,6 +329,10 @@ def parts():
                 if bar < 3:
                     for m in tones:
                         note(P[SAW], m + 12, sec, bar, 0, 1.5, h(0.4))
+    # The drop is played by the angrier PoiZone #2 - the very same notes.
+    d0, d1 = TL["drop"][0], TL["outro"][0]
+    P[SAW2] = [n for n in P[SAW] if d0 - 1e-6 <= n["time"] < d1]
+    P[SAW] = [n for n in P[SAW] if not d0 - 1e-6 <= n["time"] < d1]
     return P
 
 
@@ -304,14 +343,20 @@ def parts():
 SAW_PARAMS = [(0, 0.0), (4, 0.5), (2, 0.0039), (3, 0.0), (7, 0.12), (9, 0.06),
               (15, 0.74), (29, 0.45), (18, 0.62), (19, 0.45), (45, 0.0),
               (25, 0.22), (31, 0.0), (39, 0.0)]
+# PoiZone #2 (drop): the raw saw+pulse, angrier - brighter, more resonant
+# filter with a fast positive envelope (bite), more detune and noise,
+# octaver for weight. Still no ring mod / delay / chorus (not "spacey").
+SAW2_PARAMS = [(0, 0.0), (4, 0.5), (2, 0.0039), (3, 0.0), (7, 0.25), (9, 0.12),
+               (15, 0.8), (29, 0.5), (18, 0.85), (19, 0.62), (45, 1.0),
+               (10, 0.75), (12, 0.25), (25, 0.15), (31, 0.0), (39, 0.0)]
 KEYS_PARAMS = [(14, 0.55), (2, 0.8), (4, 0.75), (11, 0.6), (12, 0.5)]
 VOLUMES = {KICK: 0.72, CLAP: 0.55, HAT: 0.36, SNARE: 0.45, BASS: 0.72, KEYS: 0.62, SAW: 0.45,
-           PIANO: 1.0}
+           PIANO: 0.8, SAW2: 0.45}  # PIANO = "Hook Keys"
 # Hook piano: second FL Keys, clean and soft (see tracks/hooks.py)
 PIANO_PARAMS = [(14, 0.0), (2, 0.42), (4, 0.6), (5, 0.5), (1, 0.75),
                 (7, 0.3), (11, 0.45), (12, 0.5), (0, 0.0)]
 NAMES = {"kick": KICK, "clap": CLAP, "hat": HAT, "snare": SNARE,
-         "bass": BASS, "keys": KEYS, "saw": SAW, "piano": PIANO}
+         "bass": BASS, "keys": KEYS, "saw": SAW, "piano": PIANO, "saw2": SAW2}
 
 
 def send(c, action, params=None, timeout=5.0):
@@ -387,17 +432,27 @@ def main():
         send(c, "plugins.setParamValue", {"plugin_index": SAW, "param_index": pi, "value": v})
     for pi, v in KEYS_PARAMS:
         send(c, "plugins.setParamValue", {"plugin_index": KEYS, "param_index": pi, "value": v})
-    for pi, v in PIANO_PARAMS:
-        send(c, "plugins.setParamValue", {"plugin_index": PIANO, "param_index": pi, "value": v})
+    # "Hook Keys" (ch 8): an exact copy of the dirty keys' sound, louder
+    for prm in send(c, "plugins.getParams", {"index": KEYS})["params"]:
+        send(c, "plugins.setParamValue",
+             {"plugin_index": PIANO, "param_index": prm["index"], "value": prm["value"]})
+    send(c, "channels.setName", {"index": PIANO, "name": "Hook Keys"})
+    send(c, "mixer.setTrackName", {"track": 8, "name": "Hook Keys"})
+    send(c, "mixer.setTrackVolume", {"track": 8, "volume": 0.8})
     send(c, "channels.routeToMixer", {"channel_index": PIANO, "mixer_track": 8})
     send(c, "channels.routeToMixer", {"channel_index": SAW, "mixer_track": 7})
+    for pi, v in SAW2_PARAMS:
+        send(c, "plugins.setParamValue", {"plugin_index": SAW2, "param_index": pi, "value": v})
+    send(c, "channels.setName", {"index": SAW2, "name": "PoiZone Drop"})
+    send(c, "channels.routeToMixer", {"channel_index": SAW2, "mixer_track": 9})
+    send(c, "mixer.setTrackName", {"track": 9, "name": "Saw Drop"})
     send(c, "mixer.setTrackName", {"track": 7, "name": "Saw"})
     send(c, "mixer.setTrackVolume", {"track": 6, "volume": 0.8})
     send(c, "mixer.setTrackVolume", {"track": 0, "volume": 0.66})  # master: headroom
     for ch, v in VOLUMES.items():
         send(c, "channels.setVolume", {"index": ch, "volume": v})
     P = parts()
-    send(c, "channels.mute", {"index": PIANO, "mute": True})  # stock piano: out of style
+    send(c, "channels.mute", {"index": PIANO, "mute": False})
     for ch in want:
         r = write_notes(c, ch, P[ch])
         print(ch, "notes", r["notes_added"], "deleted", r["notes_deleted"])
