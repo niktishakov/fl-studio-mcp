@@ -63,6 +63,7 @@ PROG = {"prelude": ["Fm", "Db", "Bbm", "C"] * 2, "intro": ["Fm", "Fm", "Db", "C"
 HOOK = [(73, 0.0, 1.5, 0.78), (72, 1.5, 0.45, 0.62), (65, 2.0, 0.45, 0.6),
         (53, 2.5, 4.0, 0.72), (41, 2.5, 4.0, 0.55)]
 # Short form: just the cry Db -> C.
+PRELUDE_HOOK_VEL = 1.0  # measured: same level as prelude pass 2 (Nik)
 HOOK_FRAG = [(73, 0.0, 1.0, 0.8), (72, 1.0, 1.5, 0.7)]
 # Where it sounds: (section, bar, beat, channel, "full"/"frag"). The stock clean
 # piano did not fit the track (Nik), so the dirty keys and the saw play it.
@@ -161,11 +162,9 @@ def parts():
         # the hook stands out without touching the rest of the keys
         boost = 1.1 if ch == KEYS else 1.2
         ch = PIANO if ch == KEYS else ch
-        if sec == "prelude":  # loud and clear: full strength + an octave above
-            for m, b, d, v in HOOK:
-                note(P[ch], m, sec, bar, beat + b, d, 1.0)
-                if m > 50:
-                    note(P[ch], m + 12, sec, bar, beat + b, d, 0.9)
+        if sec == "prelude":  # clear (chords stop under it), at pass-2 level:
+            for m, b, d, v in HOOK:  # the quieter main keys channel, not Hook Keys
+                note(P[KEYS], m, sec, bar, beat + b, d, PRELUDE_HOOK_VEL)
             continue
         for m, b, d, v in (HOOK if form == "full" else HOOK_FRAG):
             note(P[ch], m, sec, bar, beat + b, d, min(1.0, v * boost))
