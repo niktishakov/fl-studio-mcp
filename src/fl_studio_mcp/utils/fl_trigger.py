@@ -45,16 +45,29 @@ class FLStudioTrigger:
             # Use osascript to send keystroke to FL Studio
             # Address FL Studio by bundle id: the app name changes per release
             # ("FL Studio 2025", "FL Studio 2026", ...), the bundle id does not.
+            # Bring FL forward only if needed, and give focus back to the app
+            # the user was in (Nik: trigger the UI as little as possible).
             script = f'''
-            tell application id "{FL_BUNDLE_ID}"
-                activate
+            tell application "System Events"
+                set frontProc to first application process whose frontmost is true
+                set prevApp to name of frontProc
+                set flWasFront to (bundle identifier of frontProc) is "{FL_BUNDLE_ID}"
             end tell
-            delay 0.3
+            if not flWasFront then
+                tell application id "{FL_BUNDLE_ID}" to activate
+                delay 0.25
+            end if
             tell application "System Events"
                 -- key code 16 = "Y". FL Studio ignores `keystroke "y"` with
                 -- Option held (it becomes "¥"), but accepts the raw key code.
                 key code 16 using {{command down, option down}}
             end tell
+            if not flWasFront then
+                delay 0.15
+                tell application "System Events"
+                    set frontmost of application process prevApp to true
+                end tell
+            end if
             '''
             result = subprocess.run(
                 ["osascript", "-e", script],

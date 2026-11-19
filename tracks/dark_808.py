@@ -26,6 +26,7 @@ from fl_io import (  # noqa: E402
     MARK_STEP,  # noqa: F401  (used by tracks/hooks.py)
     batch,
     get_connection,
+    goto_preset,
     run_piano_roll,  # noqa: F401
     send,
     verify,
@@ -92,10 +93,6 @@ HOOK_808 = [(61, 0.0, 1.5, 0.92, False), (60, 1.5, 0.5, 0.85, True),
             (65, 2.0, 0.5, 0.85, True), (53, 2.5, 3.5, 0.95, True)]
 HOOK_808_AT = [("drop", 0, 0), ("drop", 8, 0)]  # Nik: the bass hook only in the drop
 PORTA_808 = 0.35  # channel portamento time (normalized)
-FLEX_PRESET = 45  # "PLK Kamala" (candidate; Gramata was too "spacey")
-# FLEX dry: no "space" (Nik). Names -> value; looked up per preset.
-FLEX_DRY = {"Space": 0.0, "Phaser": 0.0, "Chorus": 0.0, "Delay mix": 0.0,
-            "Reverb mix": 0.0}
 DRIFT = 0.012     # +-beats of timing drift in the 5/4 arp (~ +-8 ms at 95 BPM)
 EPS = 1e-3  # note times are rounded to 4 decimals: compare section bounds with a margin
 # Drop bars 9-12: a rough riff on the hook notes (2 bars, second one falls).
@@ -461,6 +458,12 @@ def parts():
         P[CLAP].append({**n, "midi": CLAP_PITCH, "time": round(n["time"] + flam, 4),
                         "velocity": round(n["velocity"] * 0.6, 3)})
         P[SNARE].append({**n, "midi": 60, "velocity": round(n["velocity"] * 0.4, 3)})
+    # Pad (FLEX) under the piano: one chord per bar
+    for sec, bars in (("prelude", range(8)), ("break", range(4)), ("outro", range(4, 8))):
+        for bar in bars:
+            r, t, f = CH[PROG[sec][bar % len(PROG[sec])]]
+            for k, m in enumerate((r, t, f, r + 12)):
+                note(P[FLEX], m, sec, bar, 0.05 * k, 3.9, h(0.5, 0.03))
     # No stacked duplicates (same pitch at the same time = +6 dB on that hit):
     # merge them, keeping the stronger velocity and the longer note.
     for ch, notes in P.items():
@@ -501,11 +504,18 @@ SAW2_PARAMS = [(0, 0.0), (4, 0.0), (2, 0.0), (3, 0.0), (7, 0.2), (9, 0.04),
 CLAP_REC = [("FType", 2 / 7), ("FCut", 0.6), ("FRes", 0.55)]
 CLAP_EQ = [{"band": 0, "gain": 0.3}, {"band": 1, "gain": 0.85, "bw": 0.2},
            {"band": 2, "gain": 0.6}]
-KEYS_PARAMS = [(14, 0.55), (2, 0.8), (4, 0.75), (11, 0.6), (12, 0.5),
-               # set earlier by the lofi script - now here so a rebuild is complete
-               (5, 0.25), (7, 0.25), (13, 0.45)]
+# FL Keys, "less cheap" (Nik): almost no overdrive (it flattened the sound),
+# softer hammer, a bit less muffle, wide stereo, slight detune for life,
+# longer release, no tremolo.
+KEYS_PARAMS = [(14, 0.12), (2, 0.62), (4, 0.68), (11, 0.5), (12, 0.5),
+               (5, 0.35), (7, 0.4), (13, 0.45), (9, 0.33), (1, 0.7)]
+# Pad under the piano (FLEX): chords held a whole bar in the prelude, the
+# bridge's first half and the outro; a little reverb, nothing "spacey".
+PAD_PRESET = 31  # "PAD Ashword"
+PAD_FX = {"Space": 0.0, "Phaser": 0.0, "Chorus": 0.0, "Delay": 0.0, "Delay mix": 0.0,
+          "Reverb": 1.0, "Reverb mix": 0.18}
 VOLUMES = {KICK: 0.72, CLAP: 0.55, HAT: 0.36, SNARE: 0.45, BASS: 0.72, KEYS: 0.62, SAW: 0.45,
-           PIANO: 0.8, SAW2: 0.45, FLEX: 0.7, RISER: 0.6}  # PIANO = "Hook Keys"
+           PIANO: 0.8, SAW2: 0.45, FLEX: 0.55, RISER: 0.6}  # PIANO = "Hook Keys"
 # Riser (PoiZone #3): pure noise, closed filter opened by a slow filter envelope
 # (attack ~ the riser's length), soft fade-in; no delay/chorus.
 RISER_PARAMS = [(9, 1.0), (18, 0.08), (19, 0.5), (10, 1.0), (11, 0.6), (13, 1.0),
@@ -571,13 +581,16 @@ def main():
     cmds += [("channels.setName", {"index": RISER, "name": "Riser"}),
              ("channels.routeToMixer", {"channel_index": RISER, "mixer_track": 11}),
              ("mixer.setTrackName", {"track": 11, "name": "Riser"})]
-    cmds += [("channels.setName", {"index": FLEX, "name": "Odd Synth (FLEX)"}),
-             ("channels.routeToMixer", {"channel_index": FLEX, "mixer_track": 10}),
-             ("mixer.setTrackName", {"track": 10, "name": "Odd Synth"})]
+    cmds += [("channels.routeToMixer", {"channel_index": FLEX, "mixer_track": 10})]
     batch(c, cmds, timeout=15)
-    # FLEX was tried for the 5/4 (too "spacey" / not it) - back to PoiZone,
-    # FLEX stays on the rack, empty and muted (presets: fl_io.goto_preset)
-    send(c, "channels.mute", {"index": FLEX, "muted": True})
+    # FLEX = pad under the piano (it was tried for the removed 5/4 part)
+    print("pad preset:", goto_preset(c, FLEX, PAD_PRESET))
+    fx = {p["name"]: p["index"] for p in send(c, "plugins.getParams", {"index": FLEX})["params"]}
+    batch(c, [("plugins.setParamValue", {"plugin_index": FLEX, "param_index": fx[n], "value": v})
+              for n, v in PAD_FX.items() if n in fx]
+          + [("channels.mute", {"index": FLEX, "muted": False}),
+             ("channels.setName", {"index": FLEX, "name": "Pad (FLEX)"}),
+             ("mixer.setTrackName", {"track": 10, "name": "Pad"})])
     print(f"settings: {len(cmds)} commands in one batch ({time.time() - t0:.1f} s) | "
           f"length {TOTAL * 60 / BASE_BPM:.1f} s")
     P = parts()
