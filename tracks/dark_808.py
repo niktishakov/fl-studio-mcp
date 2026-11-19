@@ -34,23 +34,25 @@ KICK, CLAP, HAT, SNARE, BASS, KEYS, SAW, _TB, PIANO = range(9)  # 7 = unused Tra
 
 # (name, bars, beats per bar, tempo at start, tempo at end)
 SECTIONS = [
+    ("prelude", 4, 4, 72, 72),  # "end of the world": dirty keys, flows into the hook
     ("intro", 4, 4, 85, 85),
     ("verse", 8, 4, 85, 85),
     ("odd", 12, 5, 95, 95),     # 5/4, faster
     ("break", 4, 4, 70, 70),    # slows right down
-    ("build", 2, 4, 70, 140),   # accelerando with a snare roll
-    ("cry", 2, 4, 85, 85),      # silence, the hook alone, then the drop hits
+    ("build", 1, 4, 140, 140),  # one bar of snare roll already at 140, no waiting
     ("drop", 16, 4, 140, 140),  # double speed, the simple 8-bar drop twice
     ("outro", 4, 5, 85, 85),    # back to 5/4
 ]
 
 # F minor / phrygian. Chords for the saw and keys, roots for the 808.
 CH = {"Fm": [53, 56, 60], "Gb": [54, 58, 61], "Ebm": [51, 54, 58],
-      "C": [52, 55, 60], "Db": [53, 56, 61]}
-ROOT_808 = {"Fm": 53, "Gb": 54, "Ebm": 51, "C": 48, "Db": 49}
-PROG = {"intro": ["Fm", "Fm", "Db", "C"], "verse": ["Fm", "Fm", "Db", "C"],
-        "odd": ["Fm", "Gb", "Ebm", "C"], "break": ["Db", "C", "Fm", "Fm"],
-        "build": ["Gb", "C"], "cry": ["Fm", "Fm"], "drop": ["Fm", "Fm", "Gb", "C"],
+      "C": [52, 55, 60], "Db": [53, 56, 61], "Bbm": [53, 58, 61]}
+ROOT_808 = {"Fm": 53, "Gb": 54, "Ebm": 51, "C": 48, "Db": 49, "Bbm": 46}
+PROG = {"prelude": ["Fm", "Db", "Bbm", "C"], "intro": ["Fm", "Fm", "Db", "C"],
+        "verse": ["Fm", "Fm", "Db", "C"],
+        # break ends on C (dominant): the ear wants to land - on the drop
+        "odd": ["Fm", "Gb", "Ebm", "C"], "break": ["Db", "C", "Fm", "C"],
+        "build": ["C"], "drop": ["Fm", "Fm", "Gb", "C"],
         "outro": ["Fm", "Gb", "Fm", "Fm"]}
 
 # The hook ("Fate 3 - cry", chosen by Nik): a high cry that holds, then
@@ -61,14 +63,24 @@ HOOK = [(73, 0.0, 1.5, 0.78), (72, 1.5, 0.45, 0.62), (65, 2.0, 0.45, 0.6),
 HOOK_FRAG = [(73, 0.0, 1.0, 0.8), (72, 1.0, 1.5, 0.7)]
 # Where it sounds: (section, bar, beat, channel, "full"/"frag"). The stock clean
 # piano did not fit the track (Nik), so the dirty keys and the saw play it.
-HOOK_AT = [("intro", 0, 0, KEYS, "full"),
+# Prelude: the hook closes the melody; its last (low F) note lands exactly on
+# the first beat of the main part.
+HOOK_AT = [("prelude", 3, 4.0 - HOOK[-1][1], KEYS, "full"),
            ("verse", 3, 2, KEYS, "frag"), ("verse", 6, 0, KEYS, "full"),
            ("odd", 7, 3, SAW, "frag"), ("odd", 8, 0, SAW, "full"),
-           ("break", 0, 0, KEYS, "full"), ("cry", 0, 0.5, KEYS, "full"),
+           ("break", 0, 0, KEYS, "full"),
            ("drop", 15, 2, SAW, "frag"), ("outro", 2, 0, KEYS, "full")]
 # Drop bars 9-12: a rough riff on the hook notes (2 bars, second one falls).
 DROP_RIFF = [[(73, 0, .75), (72, .75, .75), (65, 1.5, .5), (68, 2, .5), (65, 2.5, 1.5)],
              [(73, 0, .75), (72, .75, .75), (65, 1.5, .5), (63, 2, .5), (60, 2.5, 1.5)]]
+
+# Prelude: an epic, slow proclamation of the end of the world, in octaves on
+# the dirty keys. It ends on Eb; the next note is the hook's Db (intro bar 1),
+# a step down - the melody flows straight into the hook. (midi, beat, len, vel)
+PRELUDE = [(65, 0, 1.5, .8), (68, 1.5, .5, .7), (72, 2, 2, .85),
+           (73, 4, 1.5, .88), (72, 5.5, .5, .72), (68, 6, 1, .75), (67, 7, 1, .72),
+           (65, 8, 1, .78), (68, 9, 1, .82), (73, 10, 2, .9),
+           (75, 12, 1.5, .95)]  # the hook follows right after (HOOK_AT)
 
 LEAD = [(72, 0, .5), (75, .5, .5), (77, 1, .75), (78, 1.75, .25), (77, 2, .5),
         (75, 2.5, .5), (72, 3, 1), (68, 4.5, .5), (70, 5, .5), (72, 5.5, 1.5),
@@ -121,6 +133,9 @@ def h(v, s=0.05):
 # ---------------------------------------------------------------- parts
 def parts():
     P = {k: [] for k in (KICK, CLAP, HAT, SNARE, BASS, KEYS, SAW, PIANO)}
+    for m, b, d, v in PRELUDE:  # melody doubled an octave below
+        for o in (0, -12):
+            note(P[KEYS], m + o, "prelude", 0, b, d, min(1.0, v * 1.12 if o == 0 else v))
     for sec, bar, beat, ch, form in HOOK_AT:
         boost = 1.1 if ch == KEYS else 1.0  # keys sit lower in the mix
         for m, b, d, v in (HOOK if form == "full" else HOOK_FRAG):
@@ -150,11 +165,14 @@ def parts():
                 hits = kicks + [bpb]
                 for a, b in zip(hits, hits[1:]):
                     note(P[BASS], root, sec, bar, a, b - a, h(0.8 if a == 0 else 0.65))
+            elif sec == "break" and bar == 3:  # tension: every beat, growing
+                for a in range(4):
+                    note(P[BASS], root, sec, bar, a, 1, 0.6 + 0.08 * a)
             elif sec in ("intro", "break"):
                 # the 808 sample decays fast: re-hit every 2 beats, no silent holes
                 for a in (0, 2):
                     note(P[BASS], root, sec, bar, a, 2, h(0.62 if a == 0 else 0.5))
-            elif sec == "build" and bar == 1:
+            elif sec == "build":
                 note(P[BASS], root, sec, bar, 0, 4, 0.7)
             # ---- clap
             if sec == "verse":
@@ -182,23 +200,26 @@ def parts():
                 for b in range(4):
                     note(P[HAT], 60, sec, bar, b, 0.1, h(0.4))
             elif sec == "break":
-                for b in range(4):
-                    note(P[HAT], 60, sec, bar, b + 0.5, 0.1, h(0.4))
+                if bar < 3:
+                    for b in range(4):
+                        note(P[HAT], 60, sec, bar, b + 0.5, 0.1, h(0.4))
+                else:  # 16ths, growing into the snare roll
+                    for i in range(16):
+                        note(P[HAT], 60, sec, bar, i / 4, 0.06, 0.3 + 0.03 * i)
             elif sec == "outro" and bar < 2:
                 for b in range(bpb):
                     note(P[HAT], 60, sec, bar, b, 0.1, h(0.38))
-            # ---- snare roll in the build (8ths -> 16ths -> 32nds, crescendo)
+            # ---- snare roll in the build: one bar, 16ths -> 32nds, crescendo
             if sec == "build":
-                div = 2 if bar == 0 else 4
-                for i in range(4 * div):
-                    b = i / div
-                    if bar == 1 and b >= 3:
-                        continue
-                    note(P[SNARE], 60, sec, bar, b, 0.08, 0.3 + 0.5 * (bar * 4 + b) / 8)
-                if bar == 1:
-                    for j in range(8):
-                        note(P[SNARE], 60, sec, bar, 3 + j / 8, 0.05, 0.75 + j * 0.03)
+                for i in range(12):
+                    note(P[SNARE], 60, sec, bar, i / 4, 0.06, 0.5 + 0.03 * i)
+                for j in range(8):
+                    note(P[SNARE], 60, sec, bar, 3 + j / 8, 0.05, 0.85 + j * 0.02)
             # ---- dirty keys: break and outro chords, sustained
+            if sec == "prelude":  # no bass here: a fat piano fills the space
+                r, t, f = CH[chord]
+                for k, m in enumerate([r - 12, r, t, f, r + 12, t + 12]):
+                    note(P[KEYS], m, sec, bar, 0.03 * k, 3.95, h(0.9, 0.04))
             if sec in ("break", "outro", "build"):
                 kv = 0.85 if sec == "break" else 0.72
                 for k, m in enumerate(CH[chord] + [CH[chord][0] + 12]):
@@ -211,9 +232,19 @@ def parts():
                 for b, d in ((0, 2.75), (2.5, 1.75)):
                     for k, m in enumerate(tones):
                         note(P[SAW], m + 12, sec, bar, b + 0.03 * k, d, h(0.5))
-            elif sec == "break":  # low pad under the dirty keys
-                for m in tones:
-                    note(P[SAW], m, sec, bar, 0, bpb - 0.1, h(0.45))
+            elif sec == "break":
+                # the break prepares the drop emotionally: hook (bar 1, keys),
+                # the prelude's "end of the world" ascent returns (bar 3),
+                # then a chromatic climb over the dominant (bar 4)
+                if bar < 3:
+                    for m in tones:
+                        note(P[SAW], m, sec, bar, 0, bpb - 0.1, h(0.45 + 0.05 * bar))
+                if bar == 2:
+                    for m, b, d, v in ((65, 0, 1, .62), (68, 1, 1, .7), (73, 2, 2, .8)):
+                        note(P[SAW], m + 12, sec, bar, b, d, v)
+                if bar == 3:
+                    for i, m in enumerate(range(72, 80)):  # C up to G in semitones
+                        note(P[SAW], m, sec, bar, i * 0.5, 0.5, 0.5 + 0.06 * i)
             elif sec == "verse":
                 for b, d in ((0, .95), (0.75, .95), (1.5, 1.7), (3, .7), (3.5, .75)):
                     for k, m in enumerate(tones):
