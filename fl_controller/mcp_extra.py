@@ -307,7 +307,27 @@ def handle_batch(params):
     return {"results": out}
 
 
+def handle_plugins_preset(params):
+    """Current preset of a channel plugin; optional "step": +1/-1 to move first.
+    "index": preset number to jump to (0-based) via plugins.setPreset if present."""
+    i = int(params.get("index_channel", params.get("channel", 0)))
+    step = int(params.get("step", 0))
+    if step > 0:
+        for _ in range(step):
+            plugins.nextPreset(i, -1, True)
+    elif step < 0:
+        for _ in range(-step):
+            plugins.prevPreset(i, -1, True)
+    count = plugins.getPresetCount(i, -1, True)
+    out = {"preset": plugins.getName(i, -1, midi.FPN_Preset, -1, True), "count": count}
+    if params.get("list"):  # paramIndex k -> name of preset k; -1 -> current preset
+        out["presets"] = [plugins.getName(i, -1, midi.FPN_Preset, k, True)
+                          for k in range(count)]
+    return out
+
+
 EXTRA_HANDLERS = {
+    "plugins.preset": handle_plugins_preset,
     "batch": handle_batch,
     "channels.getRec": handle_channels_get_rec,
     "channels.setRec": handle_channels_set_rec,

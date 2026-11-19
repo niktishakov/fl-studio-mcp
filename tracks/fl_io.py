@@ -142,3 +142,21 @@ def verify(c, parts, channels, ppq=96):
                      for n in parts[ch])
         out[ch] = (got == exp, len(got), len(exp))
     return out
+
+
+def goto_preset(c, ch, k):
+    """Select preset number k of the plugin on channel ch. The preset name only
+    updates after FL's event loop runs and multi-steps overshoot, so step one
+    preset at a time and re-read the name after each step."""
+    info = send(c, "plugins.preset", {"channel": ch, "list": True})
+    names = info["presets"]
+    target = names[k]
+    for _ in range(len(names) + 2):
+        cur = send(c, "plugins.preset", {"channel": ch})["preset"]
+        if cur == target:
+            return cur
+        idx = names.index(cur) if cur in names else 0
+        step = 1 if (k - idx) % len(names) <= len(names) // 2 else -1
+        send(c, "plugins.preset", {"channel": ch, "step": step})
+        time.sleep(0.35)
+    raise RuntimeError(f"preset {k} ({target!r}) not reached")

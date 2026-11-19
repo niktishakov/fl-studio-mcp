@@ -34,7 +34,7 @@ from fl_io import (  # noqa: E402
 )
 
 BASE_BPM = 85.0
-KICK, CLAP, HAT, SNARE, BASS, KEYS, SAW, _TB, PIANO, SAW2 = range(10)  # 7 unused TB
+KICK, CLAP, HAT, SNARE, BASS, KEYS, SAW, _TB, PIANO, SAW2, FLEX = range(11)  # 7 unused
 # SAW2 = "PoiZone #2": same notes as the saw, angrier sound, plays the drop only
 
 # (name, bars, beats per bar, tempo at start, tempo at end)
@@ -85,6 +85,11 @@ HOOK_808 = [(61, 0.0, 1.5, 0.92, False), (60, 1.5, 0.5, 0.85, True),
 HOOK_808_AT = [("verse", 6, 0), ("break", 0, 0), ("drop", 0, 0), ("drop", 8, 0),
                ("outro", 2, 0)]
 PORTA_808 = 0.35  # channel portamento time (normalized)
+FLEX_PRESET = 45  # "PLK Kamala" (candidate; Gramata was too "spacey")
+# FLEX dry: no "space" (Nik). Names -> value; looked up per preset.
+FLEX_DRY = {"Space": 0.0, "Phaser": 0.0, "Chorus": 0.0, "Delay mix": 0.0,
+            "Reverb mix": 0.0}
+DRIFT = 0.012     # +-beats of timing drift in the 5/4 arp (~ +-8 ms at 95 BPM)
 EPS = 1e-3  # note times are rounded to 4 decimals: compare section bounds with a margin
 # Drop bars 9-12: a rough riff on the hook notes (2 bars, second one falls).
 DROP_RIFF = [[(73, 0, .75), (72, .75, .75), (65, 1.5, .5), (68, 2, .5), (65, 2.5, 1.5)],
@@ -150,6 +155,12 @@ def note(out, midi, sec, bar, beat, dur, vel, **extra):
                 "velocity": round(max(0.05, min(1.0, vel)), 3), **extra})
 
 
+def hash_unit(*key):
+    """Deterministic 0..1 from a key (no shared RNG: edits elsewhere don't shift it)."""
+    d = hashlib.md5("|".join(map(str, key)).encode()).digest()
+    return int.from_bytes(d[:4], "big") / 2**32
+
+
 def h(v, s=0.05):
     """Humanized velocity: resolved per note in note()."""
     return ("h", v, s)
@@ -157,7 +168,7 @@ def h(v, s=0.05):
 
 # ---------------------------------------------------------------- parts
 def parts():
-    P = {k: [] for k in (KICK, CLAP, HAT, SNARE, BASS, KEYS, SAW, PIANO, SAW2)}
+    P = {k: [] for k in (KICK, CLAP, HAT, SNARE, BASS, KEYS, SAW, PIANO, SAW2, FLEX)}
     for rep in (0, 1):  # the prelude melody twice, doubled an octave below
         for i, (m, b, d, v) in enumerate(PRELUDE):
             last = i == len(PRELUDE) - 1
@@ -320,31 +331,30 @@ def parts():
                         note(P[SAW], m + 12, sec, bar, b + 0.025 * k, d,
                              h(0.62 if b in (0, 1.5) else 0.5))
             elif sec == "odd":
-                # develops every 4 bars instead of one arp for 12 bars
+                # PoiZone again (FLEX presets did not fit), played "alive":
+                # groups 3+2, accent on each group's first
+                # note, the group's last note rings on, every 4-bar block grows,
+                # tiny timing drift; dirty keys hold the chord underneath.
                 arp = tones + [tones[0] + 12, tones[1] + 12]
-                if bar < 4:      # 1: rising arp
-                    for i in range(bpb * 2):
-                        acc = i in (0, 6)
-                        note(P[SAW], arp[i % len(arp)] + 12, sec, bar, i * 0.5, 0.4,
-                             h(0.75 if acc else 0.5))
-                elif bar < 8:    # 2: falling arp, accents jump an octave
-                    for i in range(bpb * 2):
-                        acc = i in (0, 6)
-                        m = arp[::-1][i % len(arp)] + 12 + (12 if acc else 0)
-                        note(P[SAW], m, sec, bar, i * 0.5, 0.4, h(0.78 if acc else 0.48))
-                elif bar < 10:   # 3: ping-pong arp over low 3+2 stabs
-                    pp = arp + arp[-2:0:-1]
-                    for i in range(bpb * 2):
-                        acc = i in (0, 6)
-                        note(P[SAW], pp[i % len(pp)] + 12, sec, bar, i * 0.5, 0.4,
-                             h(0.72 if acc else 0.5))
-                    for b in (0, 3):
-                        for m in tones:
-                            note(P[SAW], m, sec, bar, b, 0.3, h(0.42))
-                else:            # 4: thin arp, only accents, growing
-                    for i in (0, 2, 4, 6, 8):
-                        v = 0.5 + 0.08 * ((bar - 10) * 5 + i // 2)
-                        note(P[SAW], arp[i % len(arp)] + 12, sec, bar, i * 0.5, 0.45, h(v))
+                blk = bar % 4
+                # fewer, longer notes (Nik: "too many notes"): 3+2 as
+                # 1.5 + 1.5 + 1 + 1 beats; the last block thins to 2 notes
+                rhythm = [(0, 1.5), (1.5, 1.5), (3, 1), (4, 1)]
+                if bar < 4:
+                    pitches = [arp[0], arp[2], arp[1], arp[3]]
+                elif bar < 8:
+                    pitches = [arp[3] + 12, arp[2], arp[1], arp[0]]
+                elif bar < 10:
+                    pitches = [arp[0], arp[3], arp[1], arp[4]]
+                else:
+                    rhythm, pitches = [(0, 3), (3, 2)], [arp[0], arp[2]]
+                for i, ((b, d), m) in enumerate(zip(rhythm, pitches)):
+                    first = b in (0, 3)
+                    v = (0.8 if first else 0.6) + 0.03 * blk + (0.06 if bar >= 10 else 0)
+                    drift = DRIFT * (2 * (hash_unit(m, bar, i) - 0.5))
+                    note(P[SAW], m + 12, sec, bar, b + drift, d - 0.05, h(v, 0.04))
+                for k, m in enumerate(tones):  # pad: dirty keys, quiet, whole bar
+                    note(P[KEYS], m, sec, bar, 0.03 * k, bpb - 0.1, h(0.42, 0.03))
             elif sec == "drop":
                 # simple and rough; bars 1-8 original lead, 9-12 a riff on the
                 # hook, 13-16 lead an octave up (hook fragment at the very end)
@@ -418,12 +428,17 @@ CLAP_EQ = [{"band": 0, "gain": 0.3}, {"band": 1, "gain": 0.85, "bw": 0.2},
            {"band": 2, "gain": 0.6}]
 KEYS_PARAMS = [(14, 0.55), (2, 0.8), (4, 0.75), (11, 0.6), (12, 0.5)]
 VOLUMES = {KICK: 0.72, CLAP: 0.55, HAT: 0.36, SNARE: 0.45, BASS: 0.72, KEYS: 0.62, SAW: 0.45,
-           PIANO: 0.8, SAW2: 0.45}  # PIANO = "Hook Keys"
+           PIANO: 0.8, SAW2: 0.45, FLEX: 0.7}  # PIANO = "Hook Keys"
+VOLUMES[HAT] = 0.7  # hats were not audible (Nik): measured +1.4 dB over the mix at 0.5
+# Hats: brighter on their mixer track (Insert 3): less low, +high shelf band
+HAT_EQ = [{"band": 0, "gain": 0.35}, {"band": 2, "gain": 0.78}]
+HAT_TRACK_VOL = 1.0  # Insert 3 at +5.6 dB
 # Hook piano: second FL Keys, clean and soft (see tracks/hooks.py)
 PIANO_PARAMS = [(14, 0.0), (2, 0.42), (4, 0.6), (5, 0.5), (1, 0.75),
                 (7, 0.3), (11, 0.45), (12, 0.5), (0, 0.0)]
 NAMES = {"kick": KICK, "clap": CLAP, "hat": HAT, "snare": SNARE,
-         "bass": BASS, "keys": KEYS, "saw": SAW, "piano": PIANO, "saw2": SAW2}
+         "bass": BASS, "keys": KEYS, "saw": SAW, "piano": PIANO, "saw2": SAW2,
+         "flex": FLEX}
 
 
 def main():
@@ -453,6 +468,8 @@ def main():
     cmds += [("channels.setRec", {"channel": CLAP, "param": prm, "value": v})
              for prm, v in CLAP_REC]
     cmds += [("mixer.setEq", {"track": 2, **eq}) for eq in CLAP_EQ]
+    cmds += [("mixer.setEq", {"track": 3, **eq}) for eq in HAT_EQ]
+    cmds += [("mixer.setTrackVolume", {"track": 3, "volume": HAT_TRACK_VOL})]
     cmds += [("channels.routeToMixer", {"channel_index": SAW, "mixer_track": 7})]
     cmds += [("plugins.setParamValue", {"plugin_index": SAW2, "param_index": pi, "value": v})
              for pi, v in SAW2_PARAMS]
@@ -465,7 +482,13 @@ def main():
              ("channels.mute", {"index": PIANO, "muted": True}),  # "muted"! "mute" toggles
              ("channels.setRec", {"channel": BASS, "param": "PortaTime", "value": PORTA_808})]
     cmds += [("channels.setVolume", {"index": ch, "volume": v}) for ch, v in VOLUMES.items()]
+    cmds += [("channels.setName", {"index": FLEX, "name": "Odd Synth (FLEX)"}),
+             ("channels.routeToMixer", {"channel_index": FLEX, "mixer_track": 10}),
+             ("mixer.setTrackName", {"track": 10, "name": "Odd Synth"})]
     batch(c, cmds, timeout=15)
+    # FLEX was tried for the 5/4 (too "spacey" / not it) - back to PoiZone,
+    # FLEX stays on the rack, empty and muted (presets: fl_io.goto_preset)
+    send(c, "channels.mute", {"index": FLEX, "muted": True})
     print(f"settings: {len(cmds)} commands in one batch ({time.time() - t0:.1f} s) | "
           f"length {TOTAL * 60 / BASE_BPM:.1f} s")
     P = parts()
