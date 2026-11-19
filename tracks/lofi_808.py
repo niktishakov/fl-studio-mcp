@@ -128,7 +128,8 @@ def keys() -> list[dict]:
                       "velocity": round(0.6 + rnd.uniform(-0.04, 0.04), 2)})
         for k, m in enumerate(chord):
             notes.append({"midi": m, "time": round(t + 0.025 * k, 3), "duration": dur - 0.05,
-                          "velocity": round((0.68 if soft else 0.62) + rnd.uniform(-0.04, 0.04), 2)})
+                          "velocity": round((0.68 if soft else 0.62)
+                                            + rnd.uniform(-0.04, 0.04), 2)})
         # Comping: re-hit the top two notes on the "and" of 3 in grooves
         if not soft and bar % 2 == 1:
             for m in chord[-2:]:
@@ -177,9 +178,11 @@ def main() -> None:
             r = c.send_command("channels.clearSteps", {"channel": ch, "length": STEPS}, timeout=15)
             print(r["channel_name"], "cleared, left", r["remaining"])
             for i in range(0, len(steps), 32):  # chunks keep each call well under the timeout
-                send(c, "channels.setSteps", {"channel": ch, "steps": steps[i:i + 32], "clear": False})
-            got = c.send_command("channels.getSteps", {"channel": ch, "length": STEPS}, timeout=15)
-            assert len(got["steps"]) == len(steps), (r["channel_name"], len(got["steps"]), len(steps))
+                send(c, "channels.setSteps",
+                     {"channel": ch, "steps": steps[i:i + 32], "clear": False})
+            got = c.send_command("channels.getSteps", {"channel": ch, "length": STEPS},
+                                 timeout=15)
+            assert len(got["steps"]) == len(steps), (r["channel_name"], len(got["steps"]))
             print(r["channel_name"], "steps", len(got["steps"]), "verified")
         for ch, vol in ((KICK, 0.62), (CLAP, 0.42), (HAT, 0.3), (SNARE, 0.0), (ASTRO, 0.0)):
             send(c, "channels.setVolume", {"index": ch, "volume": vol})

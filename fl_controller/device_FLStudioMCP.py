@@ -83,9 +83,24 @@ def OnMidiMsg(event):
         event.handled = True
 
 
+def OnUpdateBeatIndicator(value):
+    """Called on every beat while playing; drives the live tempo map."""
+    _run_idle_hook()
+
+
 def OnIdle():
-    """Called periodically when FL Studio is idle."""
-    pass  # Required FL Studio API hook; no polling needed
+    """Called periodically by FL Studio (not reliably for this device)."""
+    _run_idle_hook()
+
+
+def _run_idle_hook():
+    hook = _extra_handlers().get("__idle__")
+    if hook is None:
+        return
+    try:
+        hook({})
+    except Exception as e:
+        _EXTRA["error"] = f"__idle__: {e}"
 
 
 def execute_pending_command():
@@ -914,7 +929,8 @@ def _extra_handlers() -> dict:
     if mtime != _EXTRA["mtime"]:
         ns = {"channels": channels, "general": general, "midi": midi,
               "mixer": mixer, "patterns": patterns, "plugins": plugins,
-              "transport": transport, "ui": ui, "__name__": "mcp_extra"}
+              "transport": transport, "ui": ui, "__name__": "mcp_extra",
+              "SCRIPT_DIR": SCRIPT_DIR, "json": json}
         try:
             exec(compile(path.read_text(encoding="utf-8"), str(path), "exec"), ns)
             _EXTRA["handlers"] = ns.get("EXTRA_HANDLERS", {})

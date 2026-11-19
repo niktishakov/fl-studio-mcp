@@ -10,7 +10,11 @@ import json
 import time
 from typing import TYPE_CHECKING
 
-from fl_studio_mcp.tools.piano_roll import _get_response_file, _write_request
+from fl_studio_mcp.tools.piano_roll import (
+    _clear_request_file,
+    _get_response_file,
+    _write_request,
+)
 from fl_studio_mcp.utils.connection import get_connection
 from fl_studio_mcp.utils.fl_trigger import trigger_fl_studio
 
@@ -105,6 +109,7 @@ def register_extra_tools(mcp: FastMCP) -> None:
         resp_file = _get_response_file()
         if resp_file.exists():
             resp_file.unlink()
+        _clear_request_file()  # leftover queue would be appended -> duplicate notes
         _write_request(requests)
         triggered = trigger_fl_studio()
         result: dict = {"focus": focus, "triggered": triggered}

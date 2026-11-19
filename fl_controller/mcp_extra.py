@@ -103,9 +103,14 @@ def handle_channels_get_steps(params: dict) -> dict:
 def handle_ui_focus_piano_roll(params: dict) -> dict:
     """Point the piano roll at a channel and focus it (for ComposeWithLLM)."""
     channel = params.get("channel", 0)
+    method = params.get("method", "rack")
+    if method == "rack":
+        # F7 acts on the channel rack selection, so focus the rack first
+        # (otherwise a focused plugin window decides which channel opens)
+        ui.showWindow(midi.widChannelRack)
+        ui.setFocused(midi.widChannelRack)
     channels.selectOneChannel(channel, True)
-    method = params.get("method", "f7")
-    if method == "f7":
+    if method in ("f7", "rack"):
         # Same as pressing F7: piano roll for the selected channel
         if ui.getVisible(midi.widPianoRoll):
             ui.hideWindow(midi.widPianoRoll)
@@ -138,7 +143,85 @@ def handle_ui_focused(params: dict) -> dict:
     return {"caption": ui.getFocusedFormCaption()}
 
 
+# ---------------------------------------------------------------------------
+# Live tempo map: FL has no scripting API for tempo automation clips, so the
+# controller follows a map while playing. tempo_map.json next to this file:
+# {"enabled": true, "points": [[start_step, bpm], ...]}  (16 steps = 4/4 bar)
+# Only live playback follows it; an offline render keeps the project tempo.
+# ---------------------------------------------------------------------------
+
+_TEMPO = {"mtime": None, "points": [], "enabled": False, "last": None,
+          "idle_calls": 0, "step": None}
+
+
+def _tempo_map_path():
+    return SCRIPT_DIR / "tempo_map.json"
+
+
+def _load_tempo_map():
+    path = _tempo_map_path()
+    try:
+        mtime = path.stat().st_mtime
+    except OSError:
+        _TEMPO["enabled"] = False
+        return
+    if mtime != _TEMPO["mtime"]:
+        data = json.loads(path.read_text(encoding="utf-8"))
+        _TEMPO["points"] = sorted((int(a), float(b)) for a, b in data.get("points", []))
+        _TEMPO["enabled"] = bool(data.get("enabled", True))
+        _TEMPO["mtime"] = mtime
+        _TEMPO["last"] = None
+
+
+def handle_idle(params):
+    _TEMPO["idle_calls"] += 1
+    _load_tempo_map()
+    if not _TEMPO["enabled"] or not _TEMPO["points"] or not transport.isPlaying():
+        return {}
+    tps = general.getRecPPQ() // 4
+    step = transport.getSongPos(midi.SONGLENGTH_ABSTICKS) // tps
+    _TEMPO["step"] = step
+    bpm = _TEMPO["points"][0][1]
+    for start, b in _TEMPO["points"]:
+        if step >= start:
+            bpm = b
+        else:
+            break
+    if bpm != _TEMPO["last"]:
+        general.processRECEvent(midi.REC_Tempo, int(round(bpm * 1000)),
+                                midi.REC_Control | midi.REC_UpdateControl)
+        _TEMPO["last"] = bpm
+    return {"step": step, "bpm": bpm}
+
+
+def handle_tempo_set_map(params):
+    """points: [[start_step, bpm], ...]; enabled: bool."""
+    data = {"enabled": params.get("enabled", True), "points": params.get("points", [])}
+    _tempo_map_path().write_text(json.dumps(data), encoding="utf-8")
+    _TEMPO["mtime"] = None
+    return {"points": len(data["points"]), "enabled": data["enabled"]}
+
+
+def handle_tempo_get_map(params):
+    _load_tempo_map()
+    return {"enabled": _TEMPO["enabled"], "points": _TEMPO["points"],
+            "current_bpm": _tempo_bpm(), "idle_calls": _TEMPO["idle_calls"],
+            "step": _TEMPO["step"], "last_set": _TEMPO["last"]}
+
+
+def handle_debug_core(params):
+    import sys
+    mods = {k: sorted(n for n in dir(m) if n.startswith("On"))
+            for k, m in list(sys.modules.items()) if "FLStudioMCP" in k or k == "__main__"}
+    return {"modules": mods}
+
+
 EXTRA_HANDLERS = {
+    "debug.core": handle_debug_core,
+    "__idle__": handle_idle,
+    "tempo.setMap": handle_tempo_set_map,
+    "tempo.getMap": handle_tempo_get_map,
+    "tempo.tick": handle_idle,
     "ui.escape": handle_ui_escape,
     "ui.focused": handle_ui_focused,
     "transport.getTempo": handle_transport_get_tempo,
