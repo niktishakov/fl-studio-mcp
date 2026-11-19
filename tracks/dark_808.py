@@ -63,6 +63,7 @@ PROG = {"prelude": ["Fm", "Db", "Bbm", "C"] * 2, "intro": ["Fm", "Fm", "Db", "C"
 HOOK = [(73, 0.0, 1.5, 0.78), (72, 1.5, 0.45, 0.62), (65, 2.0, 0.45, 0.6),
         (53, 2.5, 4.0, 0.72), (41, 2.5, 4.0, 0.55)]
 # Short form: just the cry Db -> C.
+CLAP_PITCH = 58  # clap sample 2 semitones down: darker, dirtier
 PRELUDE_HOOK_VEL = 1.0  # measured: same level as prelude pass 2 (Nik)
 HOOK_FRAG = [(73, 0.0, 1.0, 0.8), (72, 1.0, 1.5, 0.7)]
 # Where it sounds: (section, bar, beat, channel, "full"/"frag"). The stock clean
@@ -334,6 +335,16 @@ def parts():
                 if bar < 3:
                     for m in tones:
                         note(P[SAW], m + 12, sec, bar, 0, 1.5, h(0.4))
+    # Dirty clap (Nik): 2 semitones lower, a second hit 15 ms later (flam) and
+    # a quiet 808 snare under every clap.
+    flam = 0.015 * BASE_BPM / 60  # 15 ms in project beats
+    claps = P[CLAP]
+    P[CLAP] = []
+    for n in claps:
+        P[CLAP].append({**n, "midi": CLAP_PITCH})
+        P[CLAP].append({**n, "midi": CLAP_PITCH, "time": round(n["time"] + flam, 4),
+                        "velocity": round(n["velocity"] * 0.6, 3)})
+        P[SNARE].append({**n, "midi": 60, "velocity": round(n["velocity"] * 0.4, 3)})
     # The drop is played by the angrier PoiZone #2 - the very same notes.
     d0, d1 = TL["drop"][0], TL["outro"][0]
     P[SAW2] = [n for n in P[SAW] if d0 - 1e-6 <= n["time"] < d1]
@@ -355,6 +366,11 @@ SAW_PARAMS = [(0, 0.0), (4, 0.5), (2, 0.0039), (3, 0.0), (7, 0.12), (9, 0.06),
 SAW2_PARAMS = [(0, 0.0), (4, 0.0), (2, 0.0), (3, 0.0), (7, 0.2), (9, 0.04),
                (15, 0.8), (29, 0.68), (30, 0.45), (18, 0.66), (19, 0.5), (45, 0.0),
                (10, 0.7), (12, 0.3), (25, 0.2), (31, 0.0), (39, 0.0)]
+# Dirty clap: resonant band-pass on the sampler channel (FType 2/7 = band pass)
+# and the mixer's built-in EQ on Insert 2: low cut, narrow +12.6 dB at 1.5 kHz.
+CLAP_REC = [("FType", 2 / 7), ("FCut", 0.6), ("FRes", 0.55)]
+CLAP_EQ = [{"band": 0, "gain": 0.3}, {"band": 1, "gain": 0.85, "bw": 0.2},
+           {"band": 2, "gain": 0.6}]
 KEYS_PARAMS = [(14, 0.55), (2, 0.8), (4, 0.75), (11, 0.6), (12, 0.5)]
 VOLUMES = {KICK: 0.72, CLAP: 0.55, HAT: 0.36, SNARE: 0.45, BASS: 0.72, KEYS: 0.62, SAW: 0.45,
            PIANO: 0.8, SAW2: 0.45}  # PIANO = "Hook Keys"
@@ -446,6 +462,10 @@ def main():
     send(c, "mixer.setTrackName", {"track": 8, "name": "Hook Keys"})
     send(c, "mixer.setTrackVolume", {"track": 8, "volume": 0.8})
     send(c, "channels.routeToMixer", {"channel_index": PIANO, "mixer_track": 8})
+    for prm, v in CLAP_REC:
+        send(c, "channels.setRec", {"channel": CLAP, "param": prm, "value": v})
+    for eq in CLAP_EQ:
+        send(c, "mixer.setEq", {"track": 2, **eq})
     send(c, "channels.routeToMixer", {"channel_index": SAW, "mixer_track": 7})
     for pi, v in SAW2_PARAMS:
         send(c, "plugins.setParamValue", {"plugin_index": SAW2, "param_index": pi, "value": v})

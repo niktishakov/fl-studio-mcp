@@ -235,7 +235,69 @@ def handle_patterns_list(params):
             "current": patterns.patternNumber()}
 
 
+# ---------------------------------------------------------------------------
+# Channel REC events (sampler filter, pitch, ...) and the mixer's built-in EQ.
+# ---------------------------------------------------------------------------
+
+def _rec_id(params):
+    import device  # noqa: F401  (FL module)
+    ch = int(params.get("channel", 0))
+    return channels.getRecEventId(ch, True) + getattr(midi, "REC_Chan_" + params["param"])
+
+
+def _rec_state(eid):
+    import device
+    out = {"value": device.getLinkedValue(eid)}
+    try:
+        out["text"] = device.getLinkedValueString(eid)
+    except Exception:
+        pass
+    return out
+
+
+def handle_channels_get_rec(params):
+    """param: FCut, FRes, FType, Pitch, Vol, Pan, ... (midi.REC_Chan_*)."""
+    return _rec_state(_rec_id(params))
+
+
+def handle_channels_set_rec(params):
+    """Set a channel REC control to a normalized value 0..1."""
+    eid = _rec_id(params)
+    v = max(0.0, min(1.0, float(params["value"])))
+    general.processRECEvent(eid, int(round(v * midi.FromMIDI_Max)),
+                            midi.REC_MIDIController)
+    return _rec_state(eid)
+
+
+def handle_mixer_get_eq(params):
+    t = int(params.get("track", 0))
+    bands = []
+    for b in range(mixer.getEqBandCount()):
+        bands.append({"band": b, "gain": mixer.getEqGain(t, b),
+                      "gain_db": mixer.getEqGain(t, b, 1),
+                      "freq": mixer.getEqFrequency(t, b),
+                      "freq_hz": mixer.getEqFrequency(t, b, 1),
+                      "bw": mixer.getEqBandwidth(t, b)})
+    return {"track": t, "bands": bands}
+
+
+def handle_mixer_set_eq(params):
+    """band 0/1/2; gain, freq, bw normalized 0..1 (gain 0.5 = 0 dB)."""
+    t, b = int(params.get("track", 0)), int(params.get("band", 0))
+    if "freq" in params:
+        mixer.setEqFrequency(t, b, float(params["freq"]))
+    if "bw" in params:
+        mixer.setEqBandwidth(t, b, float(params["bw"]))
+    if "gain" in params:
+        mixer.setEqGain(t, b, float(params["gain"]))
+    return handle_mixer_get_eq({"track": t})
+
+
 EXTRA_HANDLERS = {
+    "channels.getRec": handle_channels_get_rec,
+    "channels.setRec": handle_channels_set_rec,
+    "mixer.getEq": handle_mixer_get_eq,
+    "mixer.setEq": handle_mixer_set_eq,
     "patterns.jump": handle_patterns_jump,
     "patterns.list": handle_patterns_list,
     "debug.core": handle_debug_core,
