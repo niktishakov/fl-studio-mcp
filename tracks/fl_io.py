@@ -125,13 +125,17 @@ def verify(c, parts, channels, ppq=96):
     for ch in channels:
         send(c, "channels.setGridBit", {"channel": ch, "position": MARK_STEP, "value": True})
         st = None
-        for _ in range(4):
+        for _ in range(6):
             send(c, "ui.focusPianoRoll", {"channel": ch})
             time.sleep(0.3)
             r, st = run_piano_roll([{"action": "expect_marker", "time_ticks": MARK_TICK}])
-            if r is not None and r.get("status") != "wrong_channel":
+            if r is not None and st is not None and r.get("status") != "wrong_channel":
                 break
+            st = None
         send(c, "channels.setGridBit", {"channel": ch, "position": MARK_STEP, "value": False})
+        if st is None:
+            out[ch] = (False, "no answer from the piano roll", len(parts[ch]))
+            continue
         got = sorted((n["number"], n["time_ticks"], n["length_ticks"])
                      for n in st["notes"] if n["time_ticks"] != MARK_TICK)
         exp = sorted((n["midi"], int(ppq * n["time"]), int(ppq * n["duration"]))

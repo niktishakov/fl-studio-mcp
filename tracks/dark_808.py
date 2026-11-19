@@ -17,7 +17,7 @@ Run:  uv run python tracks/dark_808.py [part ...] [--force]
 
 from __future__ import annotations
 
-import random
+import hashlib
 import sys
 import time
 
@@ -75,11 +75,17 @@ HOOK_FRAG = [(73, 0.0, 1.0, 0.8), (72, 1.0, 1.5, 0.7)]
 # piano did not fit the track (Nik), so the dirty keys and the saw play it.
 # Prelude: the hook closes the melody; its last (low F) note lands exactly on
 # the first beat of the main part.
-HOOK_AT = [("prelude", 7, 4.0 - HOOK[-1][1], KEYS, "full"),
-           ("verse", 3, 2, KEYS, "frag"), ("verse", 6, 0, KEYS, "full"),
-           ("odd", 7, 3, SAW, "frag"), ("odd", 8, 0, SAW, "full"),
-           ("break", 0, 0, KEYS, "full"),
-           ("drop", 15, 2, SAW, "frag"), ("outro", 2, 0, KEYS, "full")]
+HOOK_AT = [("prelude", 7, 4.0 - HOOK[-1][1], KEYS, "full")]
+# In the main part the hook is played by the 808 itself, gliding (Nik: the
+# keys/saw hooks did not fit). It replaces the bass line in its window, only
+# at key moments: end of the verse, start of the break, drop bars 1 and 9,
+# and last in the outro. (midi, beat, len, vel, glide-in)
+HOOK_808 = [(61, 0.0, 1.5, 0.92, False), (60, 1.5, 0.5, 0.85, True),
+            (65, 2.0, 0.5, 0.85, True), (53, 2.5, 3.5, 0.95, True)]
+HOOK_808_AT = [("verse", 6, 0), ("break", 0, 0), ("drop", 0, 0), ("drop", 8, 0),
+               ("outro", 2, 0)]
+PORTA_808 = 0.35  # channel portamento time (normalized)
+EPS = 1e-3  # note times are rounded to 4 decimals: compare section bounds with a margin
 # Drop bars 9-12: a rough riff on the hook notes (2 bars, second one falls).
 DROP_RIFF = [[(73, 0, .75), (72, .75, .75), (65, 1.5, .5), (68, 2, .5), (65, 2.5, 1.5)],
              [(73, 0, .75), (72, .75, .75), (65, 1.5, .5), (63, 2, .5), (60, 2.5, 1.5)]]
@@ -96,7 +102,6 @@ LEAD = [(72, 0, .5), (75, .5, .5), (77, 1, .75), (78, 1.75, .25), (77, 2, .5),
         (75, 2.5, .5), (72, 3, 1), (68, 4.5, .5), (70, 5, .5), (72, 5.5, 1.5),
         (66, 7, .5), (65, 7.5, .5)]
 
-rnd = random.Random(1808)
 
 
 # ---------------------------------------------------------------- tempo map
@@ -133,16 +138,21 @@ def at(sec: str, bar: int, beat: float) -> float:
     return TL[sec][i] + frac * (TL[sec][i + 1] - TL[sec][i])
 
 
-def note(out, midi, sec, bar, beat, dur, vel):
+def note(out, midi, sec, bar, beat, dur, vel, **extra):
     t0 = at(sec, bar, beat)
     t1 = at(sec, bar, beat + dur)
+    if isinstance(vel, tuple):  # humanized: jitter derived from the note itself,
+        _, v, s = vel           # so edits elsewhere don't change it (cache stays valid)
+        d = hashlib.md5(f"{midi}|{t0:.4f}|{v}|{s}".encode()).digest()
+        vel = v + (2 * int.from_bytes(d[:4], "big") / 2**32 - 1) * s
     out.append({"midi": midi, "time": round(t0, 4),
                 "duration": round(max(0.02, t1 - t0 - 0.005), 4),
-                "velocity": round(max(0.05, min(1.0, vel)), 3)})
+                "velocity": round(max(0.05, min(1.0, vel)), 3), **extra})
 
 
 def h(v, s=0.05):
-    return v + rnd.uniform(-s, s)
+    """Humanized velocity: resolved per note in note()."""
+    return ("h", v, s)
 
 
 # ---------------------------------------------------------------- parts
@@ -319,13 +329,16 @@ def parts():
                              h(0.75 if acc else 0.5))
                 elif bar < 8:    # 2: falling arp, accents jump an octave
                     for i in range(bpb * 2):
-                        if bar == 7 and i >= 6:
-                            break  # room for the hook fragment
                         acc = i in (0, 6)
                         m = arp[::-1][i % len(arp)] + 12 + (12 if acc else 0)
                         note(P[SAW], m, sec, bar, i * 0.5, 0.4, h(0.78 if acc else 0.48))
-                elif bar < 10:   # 3: the hook on top (HOOK_AT), low 3+2 stabs under
-                    for b in (0, 1.5, 3):
+                elif bar < 10:   # 3: ping-pong arp over low 3+2 stabs
+                    pp = arp + arp[-2:0:-1]
+                    for i in range(bpb * 2):
+                        acc = i in (0, 6)
+                        note(P[SAW], pp[i % len(pp)] + 12, sec, bar, i * 0.5, 0.4,
+                             h(0.72 if acc else 0.5))
+                    for b in (0, 3):
                         for m in tones:
                             note(P[SAW], m, sec, bar, b, 0.3, h(0.42))
                 else:            # 4: thin arp, only accents, growing
@@ -341,8 +354,6 @@ def parts():
                 else:
                     octave = 12 if bar >= 12 or bar % 8 >= 4 else 0
                     for m, b, d in LEAD:
-                        if bar == 15 and b >= 6:
-                            continue  # room for the hook fragment
                         if (bar % 2) * 4 <= b < (bar % 2) * 4 + 4:
                             v = 0.85 if b % 1 == 0 else 0.7
                             note(P[SAW], m + octave, sec, bar, b - (bar % 2) * 4, d, h(v))
@@ -353,6 +364,22 @@ def parts():
                 if bar < 3:
                     for m in tones:
                         note(P[SAW], m + 12, sec, bar, 0, 1.5, h(0.4))
+    # 808 hook: clear the bass line in the hook's window, then the gliding hook
+    for sec, bar, beat in HOOK_808_AT:
+        w0 = at(sec, bar, beat)
+        w1 = at(sec, bar, beat + HOOK_808[-1][1] + HOOK_808[-1][2])
+        kept = []
+        for n in P[BASS]:
+            if w0 - EPS <= n["time"] < w1 - EPS:  # EPS: note times are rounded
+                continue
+            if n["time"] < w0 - EPS < n["time"] + n["duration"]:
+                n = {**n, "duration": round(w0 - n["time"] - 0.005, 4)}
+            kept.append(n)
+        P[BASS] = kept
+        for m, b, d, v, glide in HOOK_808:
+            extra = {"porta": True} if glide else {}
+            note(P[BASS], m, sec, bar, beat + b, d, v, **extra)
+    P[BASS].sort(key=lambda n: n["time"])
     # Dirty clap (Nik): 2 semitones lower, a second hit 15 ms later (flam) and
     # a quiet 808 snare under every clap.
     flam = 0.015 * BASE_BPM / 60  # 15 ms in project beats
@@ -365,8 +392,8 @@ def parts():
         P[SNARE].append({**n, "midi": 60, "velocity": round(n["velocity"] * 0.4, 3)})
     # The drop is played by the angrier PoiZone #2 - the very same notes.
     d0, d1 = TL["drop"][0], TL["outro"][0]
-    P[SAW2] = [n for n in P[SAW] if d0 - 1e-6 <= n["time"] < d1]
-    P[SAW] = [n for n in P[SAW] if not d0 - 1e-6 <= n["time"] < d1]
+    P[SAW2] = [n for n in P[SAW] if d0 - EPS <= n["time"] < d1 - EPS]
+    P[SAW] = [n for n in P[SAW] if not d0 - EPS <= n["time"] < d1 - EPS]
     return P
 
 
@@ -435,7 +462,8 @@ def main():
              ("mixer.setTrackName", {"track": 7, "name": "Saw"}),
              ("mixer.setTrackVolume", {"track": 6, "volume": 0.8}),
              ("mixer.setTrackVolume", {"track": 0, "volume": 0.66}),  # master: headroom
-             ("channels.mute", {"index": PIANO, "muted": False})]  # "muted"! "mute" toggles
+             ("channels.mute", {"index": PIANO, "muted": True}),  # "muted"! "mute" toggles
+             ("channels.setRec", {"channel": BASS, "param": "PortaTime", "value": PORTA_808})]
     cmds += [("channels.setVolume", {"index": ch, "volume": v}) for ch, v in VOLUMES.items()]
     batch(c, cmds, timeout=15)
     print(f"settings: {len(cmds)} commands in one batch ({time.time() - t0:.1f} s) | "
