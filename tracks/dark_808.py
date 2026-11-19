@@ -35,9 +35,9 @@ KICK, CLAP, HAT, SNARE, BASS, KEYS, SAW, _TB, PIANO, SAW2 = range(10)  # 7 unuse
 
 # (name, bars, beats per bar, tempo at start, tempo at end)
 SECTIONS = [
-    # "end of the world" twice: 2nd time pushes (72 -> 76), last bar calms
-    # down (76 -> 62) into the hook. Dirty keys only, no bass.
-    ("prelude", 8, 4, [72, 72, 72, 72, 74, 76, 76, (76, 62)], None),
+    # "end of the world" twice: the 2nd time pushes (72 -> 76) straight into a
+    # loud, clear hook - no calming, no slowing down (Nik). Keys only, no bass.
+    ("prelude", 8, 4, [72, 72, 72, 72, 74, 76, 76, 76], None),
     ("intro", 4, 4, 85, 85),
     ("verse", 8, 4, 85, 85),
     ("odd", 12, 5, 95, 95),     # 5/4, faster
@@ -161,6 +161,12 @@ def parts():
         # the hook stands out without touching the rest of the keys
         boost = 1.1 if ch == KEYS else 1.2
         ch = PIANO if ch == KEYS else ch
+        if sec == "prelude":  # loud and clear: full strength + an octave above
+            for m, b, d, v in HOOK:
+                note(P[ch], m, sec, bar, beat + b, d, 1.0)
+                if m > 50:
+                    note(P[ch], m + 12, sec, bar, beat + b, d, 0.9)
+            continue
         for m, b, d, v in (HOOK if form == "full" else HOOK_FRAG):
             note(P[ch], m, sec, bar, beat + b, d, min(1.0, v * boost))
     for sec, (bars, bpb) in INFO.items():
@@ -245,16 +251,16 @@ def parts():
                 if bar < 4:          # 1st pass: wide sustained chords
                     for k, m in enumerate(voicing):
                         note(P[KEYS], m, sec, bar, 0.03 * k, 3.95, h(0.9, 0.04))
-                elif bar < 7:        # 2nd pass: more notes, same strength -
+                elif bar < 8:        # 2nd pass: more notes, same strength -
                     for m in voicing[:2]:  # low sustain + pulsing 8th chords
-                        note(P[KEYS], m, sec, bar, 0, 3.95, h(0.9, 0.04))
+                        note(P[KEYS], m, sec, bar, 0, 3.95 if bar < 7 else 1.45, h(0.9, 0.04))
+                    hook_in = 4.0 - HOOK[-1][1]  # last bar: chords stop when the hook enters
                     for q in range(8):
+                        if bar == 7 and q * 0.5 >= hook_in:
+                            break
                         for k, m in enumerate(voicing[2:] + [f + 12]):
                             note(P[KEYS], m, sec, bar, q * 0.5 + 0.02 * k, 0.45,
                                  h(0.67 if q % 2 else 0.75, 0.03))  # measured: same RMS as pass 1
-                else:                # last bar: calm = sparse, one sustained chord
-                    for k, m in enumerate(voicing):
-                        note(P[KEYS], m, sec, bar, 0.04 * k, 3.95, h(0.9, 0.04))
             if sec in ("break", "outro", "build"):
                 kv = 0.85 if sec == "break" else 0.72
                 for k, m in enumerate(CH[chord] + [CH[chord][0] + 12]):
@@ -453,7 +459,7 @@ def main():
     for ch, v in VOLUMES.items():
         send(c, "channels.setVolume", {"index": ch, "volume": v})
     P = parts()
-    send(c, "channels.mute", {"index": PIANO, "mute": False})
+    send(c, "channels.mute", {"index": PIANO, "muted": False})  # "muted"! "mute" toggles
     for ch in want:
         r = write_notes(c, ch, P[ch])
         print(ch, "notes", r["notes_added"], "deleted", r["notes_deleted"])
