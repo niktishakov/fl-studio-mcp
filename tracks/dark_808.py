@@ -94,11 +94,11 @@ HOOK_808 = [(61, 0.0, 1.5, 0.92, False), (60, 1.5, 0.5, 0.85, True),
 HOOK_808_AT = [("drop", 0, 0), ("drop", 8, 0)]  # Nik: the bass hook only in the drop
 PORTA_808 = 0.35  # channel portamento time (normalized)
 DRIFT = 0.012     # +-beats of timing drift in the 5/4 arp (~ +-8 ms at 95 BPM)
+# break -> drop (Nik: the riser + 16th hats + snare roll build was "cheap"):
+# build bar stutters faster and faster, beat 4 is dead silent, then the drop hits
+BUILD_STUTTER = [0, 0.5, 1, 1.25, 1.5, 1.75, 2, 2.125, 2.25, 2.375, 2.5, 2.5625,
+                 2.625, 2.6875, 2.75, 2.8125, 2.875, 2.9375]
 EPS = 1e-3  # note times are rounded to 4 decimals: compare section bounds with a margin
-# intro -> verse stutter in beat 3: 8ths, 16ths, 32nds; dead silent on beat 4
-# (Nik did not hear a 1/8 gap or 35 ms saw blips: the hole is a whole beat, 700 ms)
-STUTTER = [2, 2.25, 2.5, 2.625, 2.75, 2.8125, 2.875, 2.90625, 2.9375, 2.96875]
-STUTTER_END = 3.0  # silence from here to the verse
 # Drop bars 9-12: a rough riff on the hook notes (2 bars, second one falls).
 DROP_RIFF = [[(73, 0, .75), (72, .75, .75), (65, 1.5, .5), (68, 2, .5), (65, 2.5, 1.5)],
              [(73, 0, .75), (72, .75, .75), (65, 1.5, .5), (63, 2, .5), (60, 2.5, 1.5)]]
@@ -230,13 +230,14 @@ def parts():
                     kicks = [0, 0.75, 2.5, 3.5]
             elif sec == "drop":
                 kicks = [0, 0.75, 2.5] if bar % 2 == 0 else [0, 1.5, 2.75, 3.5]
-            elif sec == "intro" and bar == 3:  # half-time, then a machine-gun roll
-                kicks = [0] + STUTTER[::2] + STUTTER[6:]
+            elif sec == "intro" and bar == 3:  # half-time preview of the verse groove
+                kicks = [0, 2, 3.5]
             elif sec == "break":  # bars 5-8 rebuild the groove step by step
-                kicks = {4: [0, 2], 5: [0, 2, 2.75], 6: [0, 1, 2, 2.75, 3.5],
-                         7: [0, 1, 2, 3, 3.5]}.get(bar, [])
-            elif sec == "build":
-                kicks = [0]
+                # 6-7: no groove any more, only stomps (half-time, then every beat)
+                kicks = {4: [0, 2], 5: [0, 2, 2.75], 6: [0, 2],
+                         7: [0, 1, 2, 3]}.get(bar, [])
+            elif sec == "build":  # machine-gun stutter, beat 4 is dead silent
+                kicks = BUILD_STUTTER[::2]
             elif sec == "outro":  # drop groove -> half-time -> one hit -> nothing
                 kicks = ([0, 0.75, 2.5] if bar % 2 == 0 else [0, 1.5, 2.75, 3.5]) if bar < 2 \
                     else [0, 2.5] if bar < 4 else [0] if bar < 6 else []
@@ -245,7 +246,10 @@ def parts():
             for k in kicks:
                 note(P[KICK], 60, sec, bar, k, 0.25, h(0.85 if k == 0 else 0.72))
             # 808: follow the kick, hold until the next hit
-            if sec in ("verse", "drop", "outro") or (sec == "break" and bar >= 4):
+            if sec == "break" and bar >= 6:  # stomps: short 808 hits, no hold
+                for a in kicks:
+                    note(P[BASS], root, sec, bar, a, 0.5, h(0.8))
+            elif sec in ("verse", "drop", "outro") or (sec == "break" and bar >= 4):
                 hits = kicks + [bpb]
                 for a, b in zip(hits, hits[1:]):
                     note(P[BASS], root, sec, bar, a, b - a, h(0.8 if a == 0 else 0.65))
@@ -253,15 +257,14 @@ def parts():
                 # the 808 sample decays fast: re-hit every 2 beats, no silent holes
                 for a in (0, 2):
                     note(P[BASS], root, sec, bar, a, 2, h(0.62 if a == 0 else 0.5))
-            elif sec == "build":
-                note(P[BASS], root, sec, bar, 0, 3.4, 0.6)
+            # build: no 808 (Nik heard the high 808 + dive as an extra bass)
             # ---- clap
             if sec == "verse":
                 note(P[CLAP], 60, sec, bar, 2, 0.25, h(0.9))
                 if blk >= 2 and bar % 2 == 1:  # ghost clap before the next bar
                     note(P[CLAP], 60, sec, bar, 3.75, 0.2, h(0.38, 0.03))
             elif sec == "break" and bar >= 4:
-                for c in ((2,) if bar < 6 else (1, 3)):
+                for c in ((2,) if bar < 6 else (0, 2) if bar == 6 else (0, 1, 2, 3)):
                     note(P[CLAP], 60, sec, bar, c, 0.25, h(0.75 + 0.05 * (bar - 4)))
             elif sec == "drop":
                 for c in (1, 3):
@@ -300,9 +303,10 @@ def parts():
             elif sec == "intro" and bar == 2:
                 for b in range(4):
                     note(P[HAT], 60, sec, bar, b, 0.1, h(0.4))
-            elif sec == "intro" and bar == 3:  # plain until the stutter takes over
-                for b in (0, 1):
-                    note(P[HAT], 60, sec, bar, b, 0.1, h(0.45))
+            elif sec == "intro" and bar == 3:  # build into the verse: 16ths growing
+                for i in range(16):
+                    note(P[HAT], 60, sec, bar, i / 4, 0.06,
+                         0.45 + 0.028 * i + (0.1 if i % 4 == 0 else 0))
             elif sec == "break":
                 if bar < 4:      # emotion: soft off-beats
                     for b in range(4):
@@ -313,20 +317,15 @@ def parts():
                 elif bar == 5:   # 8ths
                     for i in range(8):
                         note(P[HAT], 60, sec, bar, i / 2, 0.1, h(0.55 if i % 2 == 0 else 0.4))
-                else:            # 16ths, growing into the snare roll
-                    for i in range(16):
-                        note(P[HAT], 60, sec, bar, i / 4, 0.06,
-                             0.3 + 0.015 * ((bar - 6) * 16 + i) + (0.1 if i % 4 == 0 else 0))
+                # bars 6-7: no hats - only stomps (Nik: the old 16th build was cheap)
             elif sec == "outro" and bar < 4:  # 8ths -> quarters, fading
                 for b in ([i * 0.5 for i in range(8)] if bar < 2 else range(4)):
                     note(P[HAT], 60, sec, bar, b, 0.1,
                          h((0.6 if b % 1 == 0 else 0.4) - 0.07 * bar))
             # ---- snare roll in the build: one bar, 16ths -> 32nds, crescendo
-            if sec == "build":  # quieter than the drop; the last 8th is empty
-                for i in range(12):
-                    note(P[SNARE], 60, sec, bar, i / 4, 0.06, 0.4 + 0.025 * i)
-                for j in range(4):
-                    note(P[SNARE], 60, sec, bar, 3 + j / 8, 0.05, 0.7 + j * 0.04)
+            if sec == "build":  # stutter with the kick; the last beat is empty
+                for i, b in enumerate(BUILD_STUTTER):
+                    note(P[SNARE], 60, sec, bar, b, 0.05, min(1.0, 0.6 + 0.04 * i))
             # ---- dirty keys: break and outro chords, sustained
             if sec == "prelude":  # no bass here: a fat piano fills the space
                 r, t, f = CH[chord]
@@ -371,18 +370,15 @@ def parts():
                     for m, b, d, v in VERSE_THEME[bar]:
                         for o in (0, 12):
                             note(P[KEYS], m + o, sec, bar, b, d, v * (1 if o == 0 else 0.85))
-                else:        # rebuild: quieter pad under the groove
+                elif bar < 6:  # rebuild: quieter pad under the groove
                     for k, m in enumerate([r, t, f]):
                         note(P[KEYS], m, sec, bar, 0.03 * k, 3.95, h(0.55, 0.03))
-            if sec == "build":
-                for k, m in enumerate(CH[chord] + [CH[chord][0] + 12]):
-                    note(P[KEYS], m, sec, bar, 0.02 * k, 3.4, h(0.5))
             # ---- saw
             tones = CH[chord]
             # Intro + verse: smeared, not staccato - each chord rings into the
             # next one (small overlap) and is strummed instead of hit at once.
             if sec == "intro":
-                for b, d in (((0, 2.75), (2.5, 1.75)) if bar < 3 else ((0, 1.95),)):
+                for b, d in ((0, 2.75), (2.5, 1.75)):
                     for k, m in enumerate(tones):
                         note(P[SAW], m + 12, sec, bar, b + 0.03 * k, d, h(0.5))
             elif sec == "break":
@@ -392,19 +388,17 @@ def parts():
                 elif bar < 6:  # the theme moves up to the saw
                     for m, b, d, v in VERSE_THEME[bar - 4]:
                         note(P[SAW], m + 12, sec, bar, b, d, h(v, 0.03))
-                elif bar == 6:  # rising arpeggio, growing
-                    arp = tones + [x + 12 for x in tones] + [tones[0] + 24, tones[1] + 24]
-                    for i in range(8):
-                        note(P[SAW], arp[i] + 12, sec, bar, i * 0.5, 0.45, 0.55 + 0.04 * i)
-                else:           # chromatic climb over the dominant
-                    for i, m in enumerate(range(72, 80)):
-                        note(P[SAW], m + 12, sec, bar, i * 0.5, 0.5, 0.6 + 0.05 * i)
-            if sec == "break" and bar == 6:  # noise riser: one long note, filter opens
-                t0 = at("break", 6, 0)  # ends exactly on the drop's first beat
-                P[RISER].append({"midi": 60, "time": round(t0, 4),
-                                 "duration": round(TL["drop"][0] - t0 - 0.01, 4),
-                                 "velocity": 0.7})
-            elif sec == "verse" and blk == 2:
+                else:  # 6-7: low chord stabs only on the stomps, silence between
+                    for b in ((0, 2) if bar == 6 else (0, 1, 2, 3)):
+                        for m in tones + [tones[0] + 12]:
+                            note(P[SAW], m, sec, bar, b, 0.3, 0.8 + 0.1 * (bar - 6))
+            elif sec == "build":  # the chord stutters 16ths -> 32nds -> 64ths
+                for i, b in enumerate(BUILD_STUTTER):
+                    nxt = BUILD_STUTTER[i + 1] if i + 1 < len(BUILD_STUTTER) else 3
+                    for m in tones + [tones[0] + 12]:
+                        note(P[SAW], m + 12, sec, bar, b, 0.6 * (nxt - b),
+                             min(1.0, 0.7 + 0.03 * i))
+            if sec == "verse" and blk == 2:
                 # C: the prelude's "end of the world" theme returns on the saw
                 for m, b, d, v in VERSE_THEME[bar % 4]:
                     drift = DRIFT * (2 * (hash_unit(m, bar, b) - 0.5))
@@ -469,24 +463,11 @@ def parts():
         P[SNARE].append({**n, "midi": 60, "velocity": round(n["velocity"] * 0.4, 3)})
     # Transitions (Nik: "too abrupt, sounds like an FL project"):
     # risers into a part, impacts on its first beat, downlifters when energy drops
-    # intro -> verse, "brutal": the last beats stutter faster and faster
-    # (saw chord, kick and snare), the 808 dives two octaves, the last 8th is
-    # dead silent, then everything hits on the verse's first beat
-    r = ROOT_808[PROG["intro"][3]]
-    for b in list(P[BASS]):  # the 808 holds from beat 1 to the dive
-        if at("intro", 3, 2) - EPS <= b["time"] < TL["verse"][0] - EPS:
-            P[BASS].remove(b)
-    note(P[BASS], r + 24, "intro", 3, 2, 0.75, 0.95)
-    note(P[BASS], r - 12, "intro", 3, 2.75, 0.25, 1.0, porta=True)  # glide down
-    tones = CH[PROG["intro"][3]]
-    for i, b in enumerate(STUTTER):
-        nxt = STUTTER[i + 1] if i + 1 < len(STUTTER) else STUTTER_END
-        for m in tones + [tones[0] + 12]:
-            note(P[SAW], m + 12, "intro", 3, b, 0.6 * (nxt - b), min(1.0, 0.75 + 0.03 * i))
-        if b >= 2.5:
-            note(P[SNARE], 60, "intro", 3, b, 0.04, min(1.0, 0.5 + 0.05 * i))
+    note(P[RISER], 60, "intro", 3, 0, 3.95, 0.85)            # intro -> verse
+    for j in range(4):                                        # + snare fill
+        note(P[SNARE], 60, "intro", 3, 3 + j / 4, 0.06, 0.6 + 0.1 * j)
     for sec, hits in (("intro", ((BASS, ROOT_808["Fm"], 0.95), (HAT, 60, 0.6))),
-                      ("verse", ((CLAP, 60, 1.0), (SNARE, 60, 0.85), (HAT, 60, 0.8))),
+                      ("verse", ((CLAP, 60, 0.85), (SNARE, 60, 0.55), (HAT, 60, 0.7))),
                       ("break", ((BASS, ROOT_808["Db"], 0.85), (HAT, 60, 0.5)))):
         for ch, m, v in hits:                                 # impacts on bar 1
             note(P[ch], m, sec, 0, 0, 0.3 if ch != BASS else 2, v)

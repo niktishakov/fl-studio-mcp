@@ -4,7 +4,11 @@ FL's own clock (transport.getPos) is read right after start and before stop,
 then mapped to section / bar / beat of dark_808. Optionally the fragment is
 recorded from Background Music and its loudness printed per 0.1 s.
 
-Run:  uv run python tracks/listen.py 34            34 s .. 40 s
+FL's big counter shows BARS (B:S:T), not seconds: "13:01:16" is bar 13.
+Nik reads it as his position - always name the FL bar.
+
+Run:  uv run python tracks/listen.py bar 37         FL bars 37 .. 38.5
+      uv run python tracks/listen.py 34            34 s .. 40 s
       uv run python tracks/listen.py 34 6 --rec    and record
       uv run python tracks/listen.py where 37.5    what is at 37.5 s
 """
@@ -30,7 +34,9 @@ def where(seconds: float) -> str:
             i = max(k for k in range(len(tl)) if tl[k] <= beats + track.EPS)
             i = min(i, len(tl) - 2)
             beat = i + (beats - tl[i]) / (tl[i + 1] - tl[i])
-            return f"{name} bar {int(beat // 4) + 1} beat {beat % 4 + 1:.1f}"
+            fl_bar = int(beats // 4) + 1  # what FL's big counter shows (B:S:T)
+            return (f"FL bar {fl_bar} = {seconds:.1f} s = "
+                    f"{name} bar {int(beat // 4) + 1} beat {beat % 4 + 1:.1f}")
     return "before the track"
 
 
@@ -73,6 +79,8 @@ def loudness() -> None:
 
 if __name__ == "__main__":
     args = sys.argv[1:]
+    if args and args[0] == "bar":  # FL bar -> seconds at the base tempo
+        args = [str((float(args[1]) - 1) * 4 * 60 / track.BASE_BPM)] + args[2:]
     if args and args[0] == "where":
         for s in args[1:]:
             print(s, "s:", where(float(s)))
