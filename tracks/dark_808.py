@@ -44,8 +44,9 @@ SECTIONS = [
     ("prelude", 8, 4, [72, 72, 72, 72, 74, 76, 76, 76], None),
     ("intro", 4, 4, 85, 85),
     # verse -> odd (5/4) transition: last bar speeds up 85 -> 95 (no tempo jump)
-    ("verse", 8, 4, [85] * 7 + [(85, 95)], None),
-    ("odd", 12, 5, 95, 95),     # 5/4, faster
+    # verse: 16 bars developing in 4-bar blocks (the 5/4 part was removed);
+    # the last bar slows 85 -> 72 into the break (70)
+    ("verse", 16, 4, [85] * 15 + [(85, 72)], None),
     ("break", 4, 4, 70, 70),    # slows right down
     ("build", 1, 4, 140, 140),  # one bar of snare roll already at 140, no waiting
     ("drop", 16, 4, 140, 140),  # double speed, the simple 8-bar drop twice
@@ -57,9 +58,10 @@ CH = {"Fm": [53, 56, 60], "Gb": [54, 58, 61], "Ebm": [51, 54, 58],
       "C": [52, 55, 60], "Db": [53, 56, 61], "Bbm": [53, 58, 61]}
 ROOT_808 = {"Fm": 53, "Gb": 54, "Ebm": 51, "C": 48, "Db": 49, "Bbm": 46}
 PROG = {"prelude": ["Fm", "Db", "Bbm", "C"] * 2, "intro": ["Fm", "Fm", "Db", "C"],
-        "verse": ["Fm", "Fm", "Db", "C"],
+        "verse": ["Fm", "Fm", "Db", "C"] * 2 + ["Bbm", "Db", "Gb", "C"]
+        + ["Fm", "Fm", "Db", "C"],
         # break ends on C (dominant): the ear wants to land - on the drop
-        "odd": ["Fm", "Gb", "Ebm", "C"], "break": ["Db", "C", "Fm", "C"],
+        "break": ["Db", "C", "Fm", "C"],
         "build": ["C"], "drop": ["Fm", "Fm", "Gb", "C"],
         "outro": ["Fm", "Gb", "Fm", "Fm"]}
 
@@ -82,7 +84,7 @@ HOOK_AT = [("prelude", 7, 4.0 - HOOK[-1][1], KEYS, "full")]
 # and last in the outro. (midi, beat, len, vel, glide-in)
 HOOK_808 = [(61, 0.0, 1.5, 0.92, False), (60, 1.5, 0.5, 0.85, True),
             (65, 2.0, 0.5, 0.85, True), (53, 2.5, 3.5, 0.95, True)]
-HOOK_808_AT = [("verse", 6, 0), ("break", 0, 0), ("drop", 0, 0), ("drop", 8, 0),
+HOOK_808_AT = [("verse", 14, 0), ("break", 0, 0), ("drop", 0, 0), ("drop", 8, 0),
                ("outro", 2, 0)]
 PORTA_808 = 0.35  # channel portamento time (normalized)
 FLEX_PRESET = 45  # "PLK Kamala" (candidate; Gramata was too "spacey")
@@ -102,6 +104,12 @@ PRELUDE = [(65, 0, 1.5, .8), (68, 1.5, .5, .7), (72, 2, 2, .85),
            (73, 4, 1.5, .88), (72, 5.5, .5, .72), (68, 6, 1, .75), (67, 7, 1, .72),
            (65, 8, 1, .78), (68, 9, 1, .82), (73, 10, 2, .9),
            (75, 12, 1.5, .95)]  # the hook follows right after (HOOK_AT)
+
+# Verse block C: the prelude theme, one bar per line. (midi, beat, len, vel)
+VERSE_THEME = [[(65, 0, 1.5, .72), (68, 1.5, .5, .62), (72, 2, 2, .78)],
+               [(73, 0, 1.5, .8), (72, 1.5, .5, .65), (68, 2, 1, .68), (67, 3, 1, .64)],
+               [(65, 0, 1, .7), (68, 1, 1, .74), (73, 2, 2, .82)],
+               [(75, 0, 3.5, .85)]]
 
 LEAD = [(72, 0, .5), (75, .5, .5), (77, 1, .75), (78, 1.75, .25), (77, 2, .5),
         (75, 2.5, .5), (72, 3, 1), (68, 4.5, .5), (70, 5, .5), (72, 5.5, 1.5),
@@ -201,17 +209,19 @@ def parts():
             root = ROOT_808[chord]
             last4 = bar % 4 == 3
             # ---- kick + 808 pattern (beats)
-            # last 2 verse bars hint at the 5/4 limp (3+3+2); on the very last
-            # beat a loud snare fill plays ON TOP of the groove (Nik: layered,
-            # with a clear accent on itself - not a gap)
-            pre_odd = sec == "verse" and bar >= 6
-            breath = sec == "verse" and bar == 7
-            if pre_odd:
-                kicks = [0, 1.5, 3]
-            elif sec == "verse":
+            # verse blocks: A 1-4 base, B 5-8 more motion, C 9-12 new harmony
+            # + melody, D 13-16 build; on the very last beat a loud snare fill
+            # plays ON TOP of the groove (Nik: layered, accented - not a gap)
+            blk = bar // 4 if sec == "verse" else -1
+            breath = sec == "verse" and bar == INFO["verse"][0] - 1
+            if sec == "verse":
                 kicks = [0, 0.75, 2.5] if bar % 2 == 0 else [0, 1.75, 2.5, 3.25]
-            elif sec == "odd":
-                kicks = [0, 0.75, 3] if bar % 2 == 0 else [0, 1.5, 3, 4.25]
+                if blk == 1 and bar % 2 == 1:
+                    kicks = kicks + [3.75]
+                elif blk == 2:
+                    kicks = [0, 0.75, 1.5, 2.5] if bar % 2 == 0 else [0, 1.75, 2.5, 3.25]
+                elif blk == 3:
+                    kicks = [0, 0.75, 2.5, 3.5]
             elif sec == "drop":
                 kicks = [0, 0.75, 2.5] if bar % 2 == 0 else [0, 1.5, 2.75, 3.5]
             elif sec == "build":
@@ -223,7 +233,7 @@ def parts():
             for k in kicks:
                 note(P[KICK], 60, sec, bar, k, 0.25, h(0.85 if k == 0 else 0.72))
             # 808: follow the kick, hold until the next hit
-            if sec in ("verse", "odd", "drop", "outro"):
+            if sec in ("verse", "drop", "outro"):
                 hits = kicks + [bpb]
                 for a, b in zip(hits, hits[1:]):
                     note(P[BASS], root, sec, bar, a, b - a, h(0.8 if a == 0 else 0.65))
@@ -239,22 +249,26 @@ def parts():
             # ---- clap
             if sec == "verse":
                 note(P[CLAP], 60, sec, bar, 2, 0.25, h(0.9))
-            elif sec == "odd":
-                for c in (2, 4):
-                    note(P[CLAP], 60, sec, bar, c, 0.25, h(0.85))
+                if blk >= 2 and bar % 2 == 1:  # ghost clap before the next bar
+                    note(P[CLAP], 60, sec, bar, 3.75, 0.2, h(0.38, 0.03))
             elif sec == "drop":
                 for c in (1, 3):
                     note(P[CLAP], 60, sec, bar, c, 0.25, h(0.95))
             elif sec == "outro" and bar < 3:
                 note(P[CLAP], 60, sec, bar, 2, 0.25, h(0.6))
             # ---- hats
-            if sec in ("verse", "odd", "drop"):
+            if sec == "verse" and blk == 3:  # build: 16ths, growing over 4 bars
+                for i in range(16):
+                    gv = 0.32 + 0.025 * ((bar - 12) * 4 + i // 4) + (0.12 if i % 4 == 0 else 0)
+                    note(P[HAT], 60, sec, bar, i / 4, 0.06, h(gv, 0.03))
+            elif sec in ("verse", "drop"):
                 step = 0.5
                 for i in range(int(bpb / step)):
                     b = i * step
-                    acc = (b in (0, 3) if sec == "odd" else
-                           b in (0, 1.5, 3) if pre_odd else b % 1 == 0)  # 3+3+2
-                    note(P[HAT], 60, sec, bar, b, 0.1, h(0.62 if acc else 0.42))
+                    note(P[HAT], 60, sec, bar, b, 0.1, h(0.62 if b % 1 == 0 else 0.42))
+                if blk == 1:  # B: 16th pick-ups
+                    for b in (1.75, 3.75):
+                        note(P[HAT], 60, sec, bar, b, 0.06, h(0.34, 0.03))
                 if breath:  # the fill: 16ths into 32nds, growing to full strength
                     for j, b in enumerate((3, 3.25, 3.5, 3.625, 3.75, 3.875)):
                         note(P[SNARE], 60, sec, bar, b, 0.06, min(1.0, 0.7 + 0.06 * j))
@@ -300,6 +314,9 @@ def parts():
                         for k, m in enumerate(voicing[2:] + [f + 12]):
                             note(P[KEYS], m, sec, bar, q * 0.5 + 0.02 * k, 0.45,
                                  h(0.67 if q % 2 else 0.75, 0.03))  # measured: same RMS as pass 1
+            if sec == "verse" and blk >= 1:  # quiet dirty-keys pad from block B
+                for k, m in enumerate(CH[chord]):
+                    note(P[KEYS], m, sec, bar, 0.03 * k, bpb - 0.1, h(0.42, 0.03))
             if sec in ("break", "outro", "build"):
                 kv = 0.85 if sec == "break" else 0.72
                 for k, m in enumerate(CH[chord] + [CH[chord][0] + 12]):
@@ -325,36 +342,18 @@ def parts():
                 if bar == 3:
                     for i, m in enumerate(range(72, 80)):  # C up to G in semitones
                         note(P[SAW], m, sec, bar, i * 0.5, 0.5, 0.5 + 0.06 * i)
+            elif sec == "verse" and blk == 2:
+                # C: the prelude's "end of the world" theme returns on the saw
+                for m, b, d, v in VERSE_THEME[bar % 4]:
+                    drift = DRIFT * (2 * (hash_unit(m, bar, b) - 0.5))
+                    note(P[SAW], m + 12, sec, bar, b + drift, d, h(v, 0.04))
             elif sec == "verse":
                 for b, d in ((0, .95), (0.75, .95), (1.5, 1.7), (3, .7), (3.5, .75)):
                     for k, m in enumerate(tones):
                         note(P[SAW], m + 12, sec, bar, b + 0.025 * k, d,
                              h(0.62 if b in (0, 1.5) else 0.5))
-            elif sec == "odd":
-                # PoiZone again (FLEX presets did not fit), played "alive":
-                # groups 3+2, accent on each group's first
-                # note, the group's last note rings on, every 4-bar block grows,
-                # tiny timing drift; dirty keys hold the chord underneath.
-                arp = tones + [tones[0] + 12, tones[1] + 12]
-                blk = bar % 4
-                # fewer, longer notes (Nik: "too many notes"): 3+2 as
-                # 1.5 + 1.5 + 1 + 1 beats; the last block thins to 2 notes
-                rhythm = [(0, 1.5), (1.5, 1.5), (3, 1), (4, 1)]
-                if bar < 4:
-                    pitches = [arp[0], arp[2], arp[1], arp[3]]
-                elif bar < 8:
-                    pitches = [arp[3] + 12, arp[2], arp[1], arp[0]]
-                elif bar < 10:
-                    pitches = [arp[0], arp[3], arp[1], arp[4]]
-                else:
-                    rhythm, pitches = [(0, 3), (3, 2)], [arp[0], arp[2]]
-                for i, ((b, d), m) in enumerate(zip(rhythm, pitches)):
-                    first = b in (0, 3)
-                    v = (0.8 if first else 0.6) + 0.03 * blk + (0.06 if bar >= 10 else 0)
-                    drift = DRIFT * (2 * (hash_unit(m, bar, i) - 0.5))
-                    note(P[SAW], m + 12, sec, bar, b + drift, d - 0.05, h(v, 0.04))
-                for k, m in enumerate(tones):  # pad: dirty keys, quiet, whole bar
-                    note(P[KEYS], m, sec, bar, 0.03 * k, bpb - 0.1, h(0.42, 0.03))
+                    if blk >= 1 and b in (0, 1.5):  # B, D: accents get an octave on top
+                        note(P[SAW], tones[0] + 24, sec, bar, b, d, h(0.5, 0.04))
             elif sec == "drop":
                 # simple and rough; bars 1-8 original lead, 9-12 a riff on the
                 # hook, 13-16 lead an octave up (hook fragment at the very end)
