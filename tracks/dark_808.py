@@ -50,7 +50,10 @@ SECTIONS = [
     ("break", 4, 4, 70, 70),    # slows right down
     ("build", 1, 4, 140, 140),  # one bar of snare roll already at 140, no waiting
     ("drop", 16, 4, 140, 140),  # double speed, the simple 8-bar drop twice
-    ("outro", 4, 5, 85, 85),    # back to 5/4
+    # outro: the drop keeps going, then dies like a stopping tape (140 -> 58);
+    # the prelude theme returns and the hook's low F is the last chord
+    ("outro", 8, 4, [140, 140, (140, 120), (120, 100), (100, 88), (88, 78),
+                     (78, 66), (66, 58)], None),
 ]
 
 # F minor / phrygian. Chords for the saw and keys, roots for the 808.
@@ -63,7 +66,7 @@ PROG = {"prelude": ["Fm", "Db", "Bbm", "C"] * 2, "intro": ["Fm", "Fm", "Db", "C"
         # break ends on C (dominant): the ear wants to land - on the drop
         "break": ["Db", "C", "Fm", "C"],
         "build": ["C"], "drop": ["Fm", "Fm", "Gb", "C"],
-        "outro": ["Fm", "Gb", "Fm", "Fm"]}
+        "outro": ["Fm", "Fm", "Gb", "C", "Fm", "Db", "C", "Fm"]}
 
 # The hook ("Fate 3 - cry", chosen by Nik): a high cry that holds, then
 # collapses to the bottom. Soft clean piano (channel 8). (midi, beat, len, vel)
@@ -77,15 +80,15 @@ HOOK_FRAG = [(73, 0.0, 1.0, 0.8), (72, 1.0, 1.5, 0.7)]
 # piano did not fit the track (Nik), so the dirty keys and the saw play it.
 # Prelude: the hook closes the melody; its last (low F) note lands exactly on
 # the first beat of the main part.
-HOOK_AT = [("prelude", 7, 4.0 - HOOK[-1][1], KEYS, "full")]
+HOOK_AT = [("prelude", 7, 4.0 - HOOK[-1][1], KEYS, "full"),
+           ("outro", 6, 4.0 - HOOK[-1][1], KEYS, "full")]  # the last word
 # In the main part the hook is played by the 808 itself, gliding (Nik: the
 # keys/saw hooks did not fit). It replaces the bass line in its window, only
 # at key moments: end of the verse, start of the break, drop bars 1 and 9,
 # and last in the outro. (midi, beat, len, vel, glide-in)
 HOOK_808 = [(61, 0.0, 1.5, 0.92, False), (60, 1.5, 0.5, 0.85, True),
             (65, 2.0, 0.5, 0.85, True), (53, 2.5, 3.5, 0.95, True)]
-HOOK_808_AT = [("verse", 14, 0), ("break", 0, 0), ("drop", 0, 0), ("drop", 8, 0),
-               ("outro", 2, 0)]
+HOOK_808_AT = [("drop", 0, 0), ("drop", 8, 0)]  # Nik: the bass hook only in the drop
 PORTA_808 = 0.35  # channel portamento time (normalized)
 FLEX_PRESET = 45  # "PLK Kamala" (candidate; Gramata was too "spacey")
 # FLEX dry: no "space" (Nik). Names -> value; looked up per preset.
@@ -197,7 +200,7 @@ def parts():
         # the hook stands out without touching the rest of the keys
         boost = 1.1 if ch == KEYS else 1.2
         ch = PIANO if ch == KEYS else ch
-        if sec == "prelude":  # clear (chords stop under it), at pass-2 level:
+        if sec in ("prelude", "outro"):  # clear (chords stop under it):
             for m, b, d, v in HOOK:  # the quieter main keys channel, not Hook Keys
                 note(P[KEYS], m, sec, bar, beat + b, d, PRELUDE_HOOK_VEL)
             continue
@@ -226,8 +229,9 @@ def parts():
                 kicks = [0, 0.75, 2.5] if bar % 2 == 0 else [0, 1.5, 2.75, 3.5]
             elif sec == "build":
                 kicks = [0]
-            elif sec == "outro":
-                kicks = [0, 3] if bar < 3 else [0]
+            elif sec == "outro":  # drop groove -> half-time -> one hit -> nothing
+                kicks = ([0, 0.75, 2.5] if bar % 2 == 0 else [0, 1.5, 2.75, 3.5]) if bar < 2 \
+                    else [0, 2.5] if bar < 4 else [0] if bar < 6 else []
             else:
                 kicks = []
             for k in kicks:
@@ -254,8 +258,11 @@ def parts():
             elif sec == "drop":
                 for c in (1, 3):
                     note(P[CLAP], 60, sec, bar, c, 0.25, h(0.95))
-            elif sec == "outro" and bar < 3:
-                note(P[CLAP], 60, sec, bar, 2, 0.25, h(0.6))
+            elif sec == "outro" and bar < 2:
+                for c in (1, 3):
+                    note(P[CLAP], 60, sec, bar, c, 0.25, h(0.9 - 0.1 * bar))
+            elif sec == "outro" and bar < 4:
+                note(P[CLAP], 60, sec, bar, 2, 0.25, h(0.7 - 0.1 * (bar - 2)))
             # ---- hats
             if sec == "verse" and blk == 3:  # build: 16ths, growing over 4 bars
                 for i in range(16):
@@ -288,9 +295,10 @@ def parts():
                 else:  # 16ths, growing into the snare roll
                     for i in range(16):
                         note(P[HAT], 60, sec, bar, i / 4, 0.06, 0.3 + 0.03 * i)
-            elif sec == "outro" and bar < 2:
-                for b in range(bpb):
-                    note(P[HAT], 60, sec, bar, b, 0.1, h(0.38))
+            elif sec == "outro" and bar < 4:  # 8ths -> quarters, fading
+                for b in ([i * 0.5 for i in range(8)] if bar < 2 else range(4)):
+                    note(P[HAT], 60, sec, bar, b, 0.1,
+                         h((0.6 if b % 1 == 0 else 0.4) - 0.07 * bar))
             # ---- snare roll in the build: one bar, 16ths -> 32nds, crescendo
             if sec == "build":
                 for i in range(12):
@@ -317,7 +325,23 @@ def parts():
             if sec == "verse" and blk >= 1:  # quiet dirty-keys pad from block B
                 for k, m in enumerate(CH[chord]):
                     note(P[KEYS], m, sec, bar, 0.03 * k, bpb - 0.1, h(0.42, 0.03))
-            if sec in ("break", "outro", "build"):
+            if sec == "outro" and bar >= 4:
+                # the prelude returns: theme (bars 5-6) over wide chords, then
+                # the hook on the keys (bar 7) lands its low F on the last chord
+                r, t, f = CH[chord]
+                if bar < 7:  # in bar 7 the chord stops when the hook enters
+                    for k, m in enumerate([r - 12, r, t, f, r + 12]):
+                        note(P[KEYS], m, sec, bar, 0.03 * k,
+                             3.95 if bar < 6 else 4.0 - HOOK[-1][1] - 0.05, h(0.72, 0.03))
+                else:
+                    # final Fm; its low F + F come from the hook (no stacked notes)
+                    for k, m in enumerate([56, 60, 65, 68]):
+                        note(P[KEYS], m, sec, bar, 0.04 * k, 4.0, h(0.8, 0.03))
+                if bar in (4, 5):
+                    for m, b, d, v in VERSE_THEME[bar - 4]:
+                        for o in (0, 12):
+                            note(P[KEYS], m + o, sec, bar, b, d, v * (1 if o == 0 else 0.85))
+            if sec in ("break", "build"):
                 kv = 0.85 if sec == "break" else 0.72
                 for k, m in enumerate(CH[chord] + [CH[chord][0] + 12]):
                     note(P[KEYS], m, sec, bar, 0.02 * k, bpb - 0.1, h(kv))
@@ -369,10 +393,16 @@ def parts():
                 for b in (0.5, 1.5, 2.5, 3.5):  # offbeat stabs under the lead
                     for m in tones:
                         note(P[SAW], m, sec, bar, b, 0.2, h(0.45))
-            elif sec == "outro":
-                if bar < 3:
-                    for m in tones:
-                        note(P[SAW], m + 12, sec, bar, 0, 1.5, h(0.4))
+            elif sec == "outro" and bar < 4:
+                # continues the drop: lead's last phrase, then the hook riff
+                if bar < 2:
+                    for m, b, d in LEAD:
+                        if (bar % 2) * 4 <= b < (bar % 2) * 4 + 4:
+                            note(P[SAW], m + 12, sec, bar, b - (bar % 2) * 4, d,
+                                 h(0.8 if b % 1 == 0 else 0.66))
+                else:
+                    for m, b, d in DROP_RIFF[bar % 2]:
+                        note(P[SAW], m, sec, bar, b, d, h(0.72 - 0.08 * (bar - 2)))
     # 808 hook: clear the bass line in the hook's window, then the gliding hook
     for sec, bar, beat in HOOK_808_AT:
         w0 = at(sec, bar, beat)
@@ -399,8 +429,22 @@ def parts():
         P[CLAP].append({**n, "midi": CLAP_PITCH, "time": round(n["time"] + flam, 4),
                         "velocity": round(n["velocity"] * 0.6, 3)})
         P[SNARE].append({**n, "midi": 60, "velocity": round(n["velocity"] * 0.4, 3)})
+    # No stacked duplicates (same pitch at the same time = +6 dB on that hit):
+    # merge them, keeping the stronger velocity and the longer note.
+    for ch, notes in P.items():
+        merged = {}
+        for n in notes:
+            key = (n["midi"], n["time"])
+            if key in merged:
+                o = merged[key]
+                merged[key] = {**o, "velocity": max(o["velocity"], n["velocity"]),
+                               "duration": max(o["duration"], n["duration"]),
+                               **({"porta": True} if n.get("porta") or o.get("porta") else {})}
+            else:
+                merged[key] = n
+        P[ch] = sorted(merged.values(), key=lambda n: (n["time"], n["midi"]))
     # The drop is played by the angrier PoiZone #2 - the very same notes.
-    d0, d1 = TL["drop"][0], TL["outro"][0]
+    d0, d1 = TL["drop"][0], at("outro", 4, 0)  # the drop saw carries on into the outro
     P[SAW2] = [n for n in P[SAW] if d0 - EPS <= n["time"] < d1 - EPS]
     P[SAW] = [n for n in P[SAW] if not d0 - EPS <= n["time"] < d1 - EPS]
     return P
