@@ -9,25 +9,29 @@ Channels (project "808 Beat"): 0 Kick, 1 Clap, 2 HiHat, 3 Snare,
 4 808 Astronomic (808 bass sample), 5 FL Keys (dirty), 6 PoiZone (saw synth),
 8 Hook Piano (clean FL Keys, plays the hook).
 
-Run:  uv run python tracks/dark_808.py [part ...]
+Run:  uv run python tracks/dark_808.py [part ...] [--force]
       parts: kick clap hat snare bass keys saw piano saw2 (default: all)
+      Only channels whose notes changed are written (tracks/.cache); --force
+      rewrites them all; --verify reads the channels back and compares.
 """
 
 from __future__ import annotations
 
-import json
 import random
 import sys
 import time
 
-from fl_studio_mcp.tools.piano_roll import (
-    _clear_request_file,
-    _get_response_file,
-    _get_state_file,
-    _write_request,
+sys.path.insert(0, __file__.rsplit("/", 1)[0])
+from fl_io import (  # noqa: E402
+    MARK_STEP,  # noqa: F401  (used by tracks/hooks.py)
+    batch,
+    get_connection,
+    run_piano_roll,  # noqa: F401
+    send,
+    verify,
+    write_changed,
+    write_notes,  # noqa: F401
 )
-from fl_studio_mcp.utils.connection import get_connection
-from fl_studio_mcp.utils.fl_trigger import trigger_fl_studio
 
 BASE_BPM = 85.0
 KICK, CLAP, HAT, SNARE, BASS, KEYS, SAW, _TB, PIANO, SAW2 = range(10)  # 7 unused TB
@@ -381,107 +385,53 @@ NAMES = {"kick": KICK, "clap": CLAP, "hat": HAT, "snare": SNARE,
          "bass": BASS, "keys": KEYS, "saw": SAW, "piano": PIANO, "saw2": SAW2}
 
 
-def send(c, action, params=None, timeout=5.0):
-    r = c.send_command(action, params or {}, timeout=timeout)
-    if r.get("error"):
-        raise RuntimeError(f"{action}: {r['error']}")
-    return r
-
-
-MARK_STEP = 511  # marker step used to prove which channel the piano roll shows
-
-
-def run_piano_roll(requests):
-    """Queue requests, press the script hotkey, return (response, state)."""
-    resp, state = _get_response_file(), _get_state_file()
-    for f in (resp, state):
-        if f.exists():
-            f.unlink()
-    _clear_request_file()  # a leftover queue would be appended to (duplicate notes)
-    _write_request(requests)
-    trigger_fl_studio(delay=0.3)
-    for _ in range(40):
-        # an empty queue produces no response file, only the state export
-        if state.exists() and (resp.exists() or not requests):
-            try:
-                st = json.loads(state.read_text())
-                return (json.loads(resp.read_text()) if requests else {}), st
-            except json.JSONDecodeError:
-                pass
-        time.sleep(0.2)
-    return None, None
-
-
-def focus_piano_roll(c, ch):
-    """Point the piano roll at `ch` and prove it with a marker note: FL's
-    focus caption is unreliable, and once notes landed in the previous channel."""
-    send(c, "channels.setSteps", {"channel": ch, "steps": [{"pos": MARK_STEP}], "clear": False})
-    tick = MARK_STEP * 24
-    for _ in range(6):
-        send(c, "ui.focusPianoRoll", {"channel": ch})
-        time.sleep(0.5)
-        _, st = run_piano_roll([])
-        if st and any(n["time_ticks"] == tick for n in st["notes"]):
-            return True
-    raise RuntimeError(f"piano roll did not switch to channel {ch}")
-
-
-def write_notes(c, ch, notes):
-    send(c, "channels.clearSteps", {"channel": ch, "length": 1024}, timeout=30)
-    for attempt in range(3):  # idempotent: the request starts with "clear"
-        focus_piano_roll(c, ch)
-        r, st = run_piano_roll([{"action": "clear"}, {"action": "add_notes", "notes": notes}])
-        if r is not None:
-            break
-        print(f"  channel {ch}: no response, retry {attempt + 1}")
-    else:
-        raise RuntimeError(f"channel {ch}: piano roll script did not respond")
-    if st["noteCount"] != len(notes):
-        raise RuntimeError(f"channel {ch}: {st['noteCount']} notes in roll, expected {len(notes)}")
-    return r
-
-
 def main():
-    want = [NAMES[a] for a in sys.argv[1:]] or list(NAMES.values())
+    args = sys.argv[1:]
+    force = "--force" in args
+    want = [NAMES[a] for a in args if a in NAMES] or list(NAMES.values())
     c = get_connection()
     c.ensure_connected()
-    send(c, "tempo.setMap", {"points": [], "enabled": False})
-    send(c, "transport.stop")
-    send(c, "patterns.jump", {"index": 1, "name": "Dark 808"})  # the track lives in pattern 1
-    print("tempo", send(c, "transport.setTempo", {"bpm": BASE_BPM})["bpm"],
-          "| length", round(TOTAL, 2), "beats =", round(TOTAL * 60 / BASE_BPM, 1), "s")
-    for pi, v in SAW_PARAMS:
-        send(c, "plugins.setParamValue", {"plugin_index": SAW, "param_index": pi, "value": v})
-    for pi, v in KEYS_PARAMS:
-        send(c, "plugins.setParamValue", {"plugin_index": KEYS, "param_index": pi, "value": v})
-    # "Hook Keys" (ch 8): an exact copy of the dirty keys' sound, louder
-    for prm in send(c, "plugins.getParams", {"index": KEYS})["params"]:
-        send(c, "plugins.setParamValue",
-             {"plugin_index": PIANO, "param_index": prm["index"], "value": prm["value"]})
-    send(c, "channels.setName", {"index": PIANO, "name": "Hook Keys"})
-    send(c, "mixer.setTrackName", {"track": 8, "name": "Hook Keys"})
-    send(c, "mixer.setTrackVolume", {"track": 8, "volume": 0.8})
-    send(c, "channels.routeToMixer", {"channel_index": PIANO, "mixer_track": 8})
-    for prm, v in CLAP_REC:
-        send(c, "channels.setRec", {"channel": CLAP, "param": prm, "value": v})
-    for eq in CLAP_EQ:
-        send(c, "mixer.setEq", {"track": 2, **eq})
-    send(c, "channels.routeToMixer", {"channel_index": SAW, "mixer_track": 7})
-    for pi, v in SAW2_PARAMS:
-        send(c, "plugins.setParamValue", {"plugin_index": SAW2, "param_index": pi, "value": v})
-    send(c, "channels.setName", {"index": SAW2, "name": "PoiZone Drop"})
-    send(c, "channels.routeToMixer", {"channel_index": SAW2, "mixer_track": 9})
-    send(c, "mixer.setTrackName", {"track": 9, "name": "Saw Drop"})
-    send(c, "mixer.setTrackName", {"track": 7, "name": "Saw"})
-    send(c, "mixer.setTrackVolume", {"track": 6, "volume": 0.8})
-    send(c, "mixer.setTrackVolume", {"track": 0, "volume": 0.66})  # master: headroom
-    for ch, v in VOLUMES.items():
-        send(c, "channels.setVolume", {"index": ch, "volume": v})
+    t0 = time.time()
+    keys_params = send(c, "plugins.getParams", {"index": KEYS})["params"]
+    cmds = [("tempo.setMap", {"points": [], "enabled": False}),
+            ("transport.stop", {}),
+            ("patterns.jump", {"index": 1, "name": "Dark 808"}),  # the track = pattern 1
+            ("transport.setTempo", {"bpm": BASE_BPM})]
+    cmds += [("plugins.setParamValue", {"plugin_index": SAW, "param_index": pi, "value": v})
+             for pi, v in SAW_PARAMS]
+    cmds += [("plugins.setParamValue", {"plugin_index": KEYS, "param_index": pi, "value": v})
+             for pi, v in KEYS_PARAMS]
+    # "Hook Keys" (ch 8): an exact copy of the dirty keys' sound, own level
+    cmds += [("plugins.setParamValue",
+              {"plugin_index": PIANO, "param_index": prm["index"], "value": prm["value"]})
+             for prm in keys_params]
+    cmds += [("channels.setName", {"index": PIANO, "name": "Hook Keys"}),
+             ("mixer.setTrackName", {"track": 8, "name": "Hook Keys"}),
+             ("mixer.setTrackVolume", {"track": 8, "volume": 0.8}),
+             ("channels.routeToMixer", {"channel_index": PIANO, "mixer_track": 8})]
+    cmds += [("channels.setRec", {"channel": CLAP, "param": prm, "value": v})
+             for prm, v in CLAP_REC]
+    cmds += [("mixer.setEq", {"track": 2, **eq}) for eq in CLAP_EQ]
+    cmds += [("channels.routeToMixer", {"channel_index": SAW, "mixer_track": 7})]
+    cmds += [("plugins.setParamValue", {"plugin_index": SAW2, "param_index": pi, "value": v})
+             for pi, v in SAW2_PARAMS]
+    cmds += [("channels.setName", {"index": SAW2, "name": "PoiZone Drop"}),
+             ("channels.routeToMixer", {"channel_index": SAW2, "mixer_track": 9}),
+             ("mixer.setTrackName", {"track": 9, "name": "Saw Drop"}),
+             ("mixer.setTrackName", {"track": 7, "name": "Saw"}),
+             ("mixer.setTrackVolume", {"track": 6, "volume": 0.8}),
+             ("mixer.setTrackVolume", {"track": 0, "volume": 0.66}),  # master: headroom
+             ("channels.mute", {"index": PIANO, "muted": False})]  # "muted"! "mute" toggles
+    cmds += [("channels.setVolume", {"index": ch, "volume": v}) for ch, v in VOLUMES.items()]
+    batch(c, cmds, timeout=15)
+    print(f"settings: {len(cmds)} commands in one batch ({time.time() - t0:.1f} s) | "
+          f"length {TOTAL * 60 / BASE_BPM:.1f} s")
     P = parts()
-    send(c, "channels.mute", {"index": PIANO, "muted": False})  # "muted"! "mute" toggles
-    for ch in want:
-        r = write_notes(c, ch, P[ch])
-        print(ch, "notes", r["notes_added"], "deleted", r["notes_deleted"])
+    written = write_changed(c, "dark_808", 1, P, want, force=force)
+    print("written:", written or "nothing changed", f"| total {time.time() - t0:.1f} s")
+    if "--verify" in args:  # read the channels back from FL, compare note by note
+        res = verify(c, P, want)
+        print("verify:", "ALL IDENTICAL" if all(v[0] for v in res.values()) else res)
     print("pattern", send(c, "patterns.info"))
 
 

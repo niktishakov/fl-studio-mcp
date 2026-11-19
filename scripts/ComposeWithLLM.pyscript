@@ -95,6 +95,19 @@ def process_mcp_request():
         for request in requests:
             action = request.get("action")
 
+            if action == "expect_marker":
+                # Safety check in the same run: the roll must show the channel
+                # that carries the marker note, otherwise change nothing.
+                tick = int(request.get("time_ticks", -1))
+                found = any(flp.score.getNote(i).time == tick
+                            for i in range(flp.score.noteCount))
+                if not found:
+                    with open(REQUEST_FILE, 'w') as f:
+                        f.write("[]")
+                    return {"status": "wrong_channel", "requests_processed": 0,
+                            "notes_added": 0, "notes_deleted": 0}
+                continue
+
             if action == "clear":
                 # Clear all notes
                 count = flp.score.noteCount

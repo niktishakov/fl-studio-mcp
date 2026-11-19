@@ -45,8 +45,7 @@ def setup_piano(c):
 
 
 def write_all(c, keys=None):
-    if not keys or any(len(HOOKS[k]) > 3 for k in keys):
-        setup_piano(c)
+    # channel 8 is "Hook Keys" now, configured by dark_808.py - don't touch its sound
     for key, (pat, name, notes, *rest) in HOOKS.items():
         if keys and key not in keys:
             continue

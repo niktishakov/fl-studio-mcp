@@ -293,7 +293,22 @@ def handle_mixer_set_eq(params):
     return handle_mixer_get_eq({"track": t})
 
 
+def handle_batch(params):
+    """Run many commands in one round trip: {"commands": [{"action", "params"}]}.
+    Results come back in order; one failing command does not stop the rest."""
+    import sys
+    dispatch = sys.modules["__main__"].dispatch_command
+    out = []
+    for cmd in params.get("commands", []):
+        try:
+            out.append(dispatch(cmd["action"], cmd.get("params", {})))
+        except Exception as e:
+            out.append({"error": str(e)})
+    return {"results": out}
+
+
 EXTRA_HANDLERS = {
+    "batch": handle_batch,
     "channels.getRec": handle_channels_get_rec,
     "channels.setRec": handle_channels_set_rec,
     "mixer.getEq": handle_mixer_get_eq,
