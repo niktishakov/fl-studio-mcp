@@ -343,12 +343,13 @@ def parts():
 SAW_PARAMS = [(0, 0.0), (4, 0.5), (2, 0.0039), (3, 0.0), (7, 0.12), (9, 0.06),
               (15, 0.74), (29, 0.45), (18, 0.62), (19, 0.45), (45, 0.0),
               (25, 0.22), (31, 0.0), (39, 0.0)]
-# PoiZone #2 (drop): the raw saw+pulse, angrier - brighter, more resonant
-# filter with a fast positive envelope (bite), more detune and noise,
-# octaver for weight. Still no ring mod / delay / chorus (not "spacey").
-SAW2_PARAMS = [(0, 0.0), (4, 0.5), (2, 0.0039), (3, 0.0), (7, 0.25), (9, 0.12),
-               (15, 0.8), (29, 0.5), (18, 0.85), (19, 0.62), (45, 1.0),
-               (10, 0.75), (12, 0.25), (25, 0.15), (31, 0.0), (39, 0.0)]
+# PoiZone #2 (drop): angry = thick and growling, not bright. A first version
+# (hard sync + pulse + octaver + 85% filter) sounded "pixelated" (Nik), so:
+# no sync, saw+saw detuned, no octaver, wide unison, darker filter with a
+# slower positive envelope (growl on every note), little noise.
+SAW2_PARAMS = [(0, 0.0), (4, 0.0), (2, 0.0), (3, 0.0), (7, 0.2), (9, 0.04),
+               (15, 0.8), (29, 0.68), (30, 0.45), (18, 0.66), (19, 0.5), (45, 0.0),
+               (10, 0.7), (12, 0.3), (25, 0.2), (31, 0.0), (39, 0.0)]
 KEYS_PARAMS = [(14, 0.55), (2, 0.8), (4, 0.75), (11, 0.6), (12, 0.5)]
 VOLUMES = {KICK: 0.72, CLAP: 0.55, HAT: 0.36, SNARE: 0.45, BASS: 0.72, KEYS: 0.62, SAW: 0.45,
            PIANO: 0.8, SAW2: 0.45}  # PIANO = "Hook Keys"
