@@ -50,9 +50,10 @@ SECTIONS = [
     ("verse", 16, 4, [85] * 15 + [(85, 72)], None),
     # bridge (Nik: "too weak"): 4 bars of emotion at 70, then 4 bars that
     # rebuild the groove and speed up; a noise riser carries it into the drop
-    ("break", 8, 4, [70, 70, 70, 70, 75, 85, 95, (105, 120)], None),
+    # Nik: FL bars 36-39 "shorter, angrier, less rhythm": one stomp bar less
+    ("break", 7, 4, [70, 70, 70, 70, 75, 95, (105, 120)], None),
     ("build", 1, 4, [(120, 140)], None),  # snare roll, tempo reaches 140
-    ("drop", 16, 4, 140, 140),  # double speed, the simple 8-bar drop twice
+    ("drop", 20, 4, 140, 140),  # double speed; 8 + 8 + 4 more bars (Nik: longer)
     # outro: the drop keeps going, then dies like a stopping tape (140 -> 58);
     # the prelude theme returns and the hook's low F is the last chord
     ("outro", 8, 4, [140, 140, (140, 120), (120, 100), (100, 88), (88, 78),
@@ -67,7 +68,7 @@ PROG = {"prelude": ["Fm", "Db", "Bbm", "C"] * 2, "intro": ["Fm", "Fm", "Db", "C"
         "verse": ["Fm", "Fm", "Db", "C"] * 2 + ["Bbm", "Db", "Gb", "C"]
         + ["Fm", "Fm", "Db", "C"],
         # break ends on C (dominant): the ear wants to land - on the drop
-        "break": ["Db", "Ab", "Bbm", "C"] * 2,
+        "break": ["Db", "Ab", "Bbm", "C", "Db", "Ab", "C"],
         "build": ["C"], "drop": ["Fm", "Fm", "Gb", "C"],
         "outro": ["Fm", "Fm", "Gb", "C", "Fm", "Db", "C", "Fm"]}
 
@@ -96,8 +97,11 @@ PORTA_808 = 0.35  # channel portamento time (normalized)
 DRIFT = 0.012     # +-beats of timing drift in the 5/4 arp (~ +-8 ms at 95 BPM)
 # break -> drop (Nik: the riser + 16th hats + snare roll build was "cheap"):
 # build bar stutters faster and faster, beat 4 is dead silent, then the drop hits
-BUILD_STUTTER = [0, 0.5, 1, 1.25, 1.5, 1.75, 2, 2.125, 2.25, 2.375, 2.5, 2.5625,
-                 2.625, 2.6875, 2.75, 2.8125, 2.875, 2.9375]
+ONE_NOTE_FROM_FL_BAR = 26  # Nik: PoiZone on one note from here to the end
+ONE_NOTE = (65, 77)  # F in two octaves
+KEYS_MID_GAIN = 1.2  # Nik: keys +20% in FL bars 15-24
+STOMPS = {5: [0], 6: [0]}  # break bars 6-7: the saw holds one note per bar
+BUILD_STUTTER = [0, 1, 2, 2.5]  # then silence from beat 3 (Nik: less rhythm)
 EPS = 1e-3  # note times are rounded to 4 decimals: compare section bounds with a margin
 # Drop bars 9-12: a rough riff on the hook notes (2 bars, second one falls).
 DROP_RIFF = [[(73, 0, .75), (72, .75, .75), (65, 1.5, .5), (68, 2, .5), (65, 2.5, 1.5)],
@@ -233,9 +237,8 @@ def parts():
             elif sec == "intro" and bar == 3:  # half-time preview of the verse groove
                 kicks = [0, 2, 3.5]
             elif sec == "break":  # bars 5-8 rebuild the groove step by step
-                # 6-7: no groove any more, only stomps (half-time, then every beat)
-                kicks = {4: [0, 2], 5: [0, 2, 2.75], 6: [0, 2],
-                         7: [0, 1, 2, 3]}.get(bar, [])
+                # 6-8 (FL bars 36-38): no groove, only stomps that double each bar
+                kicks = STOMPS.get(bar, {4: [0, 2]}.get(bar, []))
             elif sec == "build":  # machine-gun stutter, beat 4 is dead silent
                 kicks = BUILD_STUTTER[::2]
             elif sec == "outro":  # drop groove -> half-time -> one hit -> nothing
@@ -246,9 +249,10 @@ def parts():
             for k in kicks:
                 note(P[KICK], 60, sec, bar, k, 0.25, h(0.85 if k == 0 else 0.72))
             # 808: follow the kick, hold until the next hit
-            if sec == "break" and bar >= 6:  # stomps: short 808 hits, no hold
+            if sec == "break" and bar in STOMPS:  # stomps: short 808 hits, no hold
                 for a in kicks:
-                    note(P[BASS], root, sec, bar, a, 0.5, h(0.8))
+                    note(P[BASS], root, sec, bar, a, 0.4 if bar < 7 else 0.3,
+                         1.0 if (bar, a) == (5, 0) else h(0.8))
             elif sec in ("verse", "drop", "outro") or (sec == "break" and bar >= 4):
                 hits = kicks + [bpb]
                 for a, b in zip(hits, hits[1:]):
@@ -264,13 +268,14 @@ def parts():
                 if blk >= 2 and bar % 2 == 1:  # ghost clap before the next bar
                     note(P[CLAP], 60, sec, bar, 3.75, 0.2, h(0.38, 0.03))
             elif sec == "break" and bar >= 4:
-                for c in ((2,) if bar < 6 else (0, 2) if bar == 6 else (0, 1, 2, 3)):
-                    note(P[CLAP], 60, sec, bar, c, 0.25, h(0.75 + 0.05 * (bar - 4)))
-            elif sec == "drop":
+                for c in STOMPS.get(bar, (2,)):
+                    note(P[CLAP], 60, sec, bar, c, 0.25,
+                         1.0 if (bar, c) == (5, 0) else h(0.85))
+            elif sec == "drop":  # kick first, then the clap: backbeat on 2 and 4 (Nik)
                 for c in (1, 3):
                     note(P[CLAP], 60, sec, bar, c, 0.25, h(0.95))
                 if bar == 0:  # impact on the drop's first beat: everything at once
-                    note(P[CLAP], 60, sec, bar, 0, 0.25, 1.0)
+                    # no clap on the 1: it hid the kick (Nik: "kick first, then clap")
                     note(P[SNARE], 60, sec, bar, 0, 0.2, 1.0)
                     note(P[HAT], 60, sec, bar, 0, 0.2, 0.9)
             elif sec == "outro" and bar < 2:
@@ -314,10 +319,7 @@ def parts():
                 elif bar == 4:   # quarters
                     for b in range(4):
                         note(P[HAT], 60, sec, bar, b, 0.1, h(0.45))
-                elif bar == 5:   # 8ths
-                    for i in range(8):
-                        note(P[HAT], 60, sec, bar, i / 2, 0.1, h(0.55 if i % 2 == 0 else 0.4))
-                # bars 6-7: no hats - only stomps (Nik: the old 16th build was cheap)
+                # bars 6-8: no hats - only stomps (Nik: the old 16th build was cheap)
             elif sec == "outro" and bar < 4:  # 8ths -> quarters, fading
                 for b in ([i * 0.5 for i in range(8)] if bar < 2 else range(4)):
                     note(P[HAT], 60, sec, bar, b, 0.1,
@@ -370,7 +372,7 @@ def parts():
                     for m, b, d, v in VERSE_THEME[bar]:
                         for o in (0, 12):
                             note(P[KEYS], m + o, sec, bar, b, d, v * (1 if o == 0 else 0.85))
-                elif bar < 6:  # rebuild: quieter pad under the groove
+                elif bar < 5:  # rebuild: quieter pad under the groove
                     for k, m in enumerate([r, t, f]):
                         note(P[KEYS], m, sec, bar, 0.03 * k, 3.95, h(0.55, 0.03))
             # ---- saw
@@ -385,24 +387,27 @@ def parts():
                 if bar < 4:    # low pad under the keys
                     for m in tones:
                         note(P[SAW], m, sec, bar, 0, bpb - 0.1, h(0.4 + 0.03 * bar))
-                elif bar < 6:  # the theme moves up to the saw
+                elif bar < 5:  # the theme moves up to the saw
                     for m, b, d, v in VERSE_THEME[bar - 4]:
                         note(P[SAW], m + 12, sec, bar, b, d, h(v, 0.03))
-                else:  # 6-7: low chord stabs only on the stomps, silence between
-                    for b in ((0, 2) if bar == 6 else (0, 1, 2, 3)):
-                        for m in tones + [tones[0] + 12]:
-                            note(P[SAW], m, sec, bar, b, 0.3, 0.8 + 0.1 * (bar - 6))
-            elif sec == "build":  # the chord stutters 16ths -> 32nds -> 64ths
-                for i, b in enumerate(BUILD_STUTTER):
-                    nxt = BUILD_STUTTER[i + 1] if i + 1 < len(BUILD_STUTTER) else 3
-                    for m in tones + [tones[0] + 12]:
-                        note(P[SAW], m + 12, sec, bar, b, 0.6 * (nxt - b),
-                             min(1.0, 0.7 + 0.03 * i))
+                else:  # stomps: the saw growls from hit to hit (angrier than stabs)
+                    hits = STOMPS[bar] + [bpb]
+                    for a, b in zip(hits, hits[1:]):
+                        for m in tones + [tones[0] + 12]:  # no low note: the 808 is the bass
+                            note(P[SAW], m, sec, bar, a, b - a, 1.0)  # no gap
+            elif sec == "build":  # the one-note saw holds through the build into
+                note(P[SAW], tones[0], sec, bar, 0, bpb, 1.0)  # the drop (Nik: seamless)
             if sec == "verse" and blk == 2:
                 # C: the prelude's "end of the world" theme returns on the saw
                 for m, b, d, v in VERSE_THEME[bar % 4]:
                     drift = DRIFT * (2 * (hash_unit(m, bar, b) - 0.5))
                     note(P[SAW], m + 12, sec, bar, b + drift, d, h(v, 0.04))
+            elif sec == "verse" and blk == 3:
+                # D (FL bars 26-29): one note, F in 2 octaves, on the angry
+                # PoiZone #2 (moved to SAW2 at the end) - Nik: "one note, angrier"
+                for b, d in ((0, .95), (0.75, .95), (1.5, 1.7), (3, .7), (3.5, .75)):
+                    for m in (65, 77):
+                        note(P[SAW], m, sec, bar, b, d, h(0.62 if b in (0, 1.5) else 0.5))
             elif sec == "verse":
                 for b, d in ((0, .95), (0.75, .95), (1.5, 1.7), (3, .7), (3.5, .75)):
                     for k, m in enumerate(tones):
@@ -458,8 +463,10 @@ def parts():
     P[CLAP] = []
     for n in claps:
         P[CLAP].append({**n, "midi": CLAP_PITCH})
-        P[CLAP].append({**n, "midi": CLAP_PITCH, "time": round(n["time"] + flam, 4),
-                        "velocity": round(n["velocity"] * 0.6, 3)})
+        if not (TL["drop"][0] - EPS <= n["time"] < TL["drop"][16] - EPS):  # no flam
+            P[CLAP].append({**n, "midi": CLAP_PITCH,               # in drop bars 1-4
+                            "time": round(n["time"] + flam, 4),
+                            "velocity": round(n["velocity"] * 0.6, 3)})
         P[SNARE].append({**n, "midi": 60, "velocity": round(n["velocity"] * 0.4, 3)})
     # Transitions (Nik: "too abrupt, sounds like an FL project"):
     # risers into a part, impacts on its first beat, downlifters when energy drops
@@ -467,12 +474,16 @@ def parts():
     for j in range(4):                                        # + snare fill
         note(P[SNARE], 60, "intro", 3, 3 + j / 4, 0.06, 0.6 + 0.1 * j)
     for sec, hits in (("intro", ((BASS, ROOT_808["Fm"], 0.95), (HAT, 60, 0.6))),
-                      ("verse", ((CLAP, 60, 0.85), (SNARE, 60, 0.55), (HAT, 60, 0.7))),
+                      ("verse", ((SNARE, 60, 0.55), (HAT, 60, 0.7))),  # no clap on the 1 (Nik)
                       ("break", ((BASS, ROOT_808["Db"], 0.85), (HAT, 60, 0.5)))):
         for ch, m, v in hits:                                 # impacts on bar 1
             note(P[ch], m, sec, 0, 0, 0.3 if ch != BASS else 2, v)
     note(P[DOWN], 60, "break", 0, 0, 6, 0.7)                  # verse -> break
     note(P[DOWN], 60, "outro", 4, 0, 4, 0.6)                  # outro: drums leave
+    # Nik: FL Keys 20% louder in FL bars 15-24 (FL's counter: 4 beats per bar)
+    for n in P[KEYS]:
+        if (15 - 1) * 4 - EPS <= n["time"] < 24 * 4 - EPS:
+            n["velocity"] = round(min(1.0, n["velocity"] * KEYS_MID_GAIN), 3)
     # Pad (FLEX) under the piano: one chord per bar
     for sec, bars in (("prelude", range(8)), ("break", range(4)), ("outro", range(4, 8))):
         for bar in bars:
@@ -495,8 +506,77 @@ def parts():
         P[ch] = sorted(merged.values(), key=lambda n: (n["time"], n["midi"]))
     # The drop is played by the angrier PoiZone #2 - the very same notes.
     d0, d1 = TL["drop"][0], at("outro", 4, 0)  # the drop saw carries on into the outro
-    P[SAW2] = [n for n in P[SAW] if d0 - EPS <= n["time"] < d1 - EPS]
-    P[SAW] = [n for n in P[SAW] if not d0 - EPS <= n["time"] < d1 - EPS]
+    v0, v1 = at("verse", 12, 0), TL["break"][0]  # verse D: the one-note part
+
+    def angry(n):
+        return d0 - EPS <= n["time"] < d1 - EPS or v0 - EPS <= n["time"] < v1 - EPS
+    P[SAW2] = [n for n in P[SAW] if angry(n)]
+    P[SAW] = [n for n in P[SAW] if not angry(n)]
+    # Nik: from FL bar 26 to the end PoiZone holds ONE note (F), angrier sound:
+    # keep every onset and length, replace the pitches with F in two octaves,
+    # all on PoiZone #2
+    t0 = (ONE_NOTE_FROM_FL_BAR - 1) * 4
+    hits = {}
+    for n in P[SAW] + P[SAW2]:
+        if n["time"] >= t0 - EPS:
+            k = n["time"]
+            old = hits.get(k)
+            hits[k] = {"time": k,
+                       "duration": max(n["duration"], old["duration"] if old else 0),
+                       "velocity": max(n["velocity"], old["velocity"] if old else 0)}
+    keep = [n for n in P[SAW] if n["time"] < t0 - EPS]
+    early2 = [n for n in P[SAW2] if n["time"] < t0 - EPS]
+    P[SAW] = keep
+    one = []  # strummed chords give onsets 0.025 apart: merge them, no overlaps
+    for h_ in sorted(hits.values(), key=lambda n: n["time"]):
+        if one and h_["time"] - one[-1]["time"] < 0.1:
+            one[-1]["velocity"] = max(one[-1]["velocity"], h_["velocity"])
+            continue
+        one.append(dict(h_))
+    for a, b in zip(one, one[1:]):
+        a["duration"] = round(min(a["duration"], b["time"] - a["time"] - 0.01), 4)
+    d0, d1 = TL["drop"][0], TL["outro"][0]
+    for h_ in one:  # drop: the one note stands out (Nik) - full velocity, + high F
+        h_["drop"] = d0 - EPS <= h_["time"] < d1 - EPS
+        if h_["drop"]:
+            h_["velocity"] = 1.0
+    P[SAW2] = early2 + [{k: v for k, v in {**h_, "midi": m}.items() if k != "drop"}
+                        for h_ in one for m in ONE_NOTE + ((89,) if h_["drop"] else ())]
+    # Nik: the drop saw gets fatter step by step towards the end (same note F):
+    # bars 1-6 PoiZone #2 alone, 7-12 + the first PoiZone doubling it,
+    # 13-20 + low F on both
+    dl = TL["drop"]
+    for n in [n for n in P[SAW2] if n["midi"] == 65 and dl[0] - EPS <= n["time"] < dl[-1]]:
+        dbar = max(k for k in range(len(dl)) if dl[k] <= n["time"] + EPS) // 4
+        if dbar >= 6:
+            for m in (65, 77):
+                P[SAW].append({**n, "midi": m})
+        if dbar >= 12:
+            P[SAW2].append({**n, "midi": 53})
+            P[SAW].append({**n, "midi": 53})
+    # Nik: FL bars 36-38 have no rhythm at all - only the one-note saw;
+    # the beat starts hard on the drop
+    q0, q1 = at("break", 5, 0), TL["drop"][0]
+    for ch in (KICK, CLAP, HAT, SNARE, BASS):
+        P[ch] = [n for n in P[ch] if not q0 - EPS <= n["time"] < q1 - EPS]
+    hole = q1 - 0.5 * BASE_BPM / 60  # Nik: half a second of saw silence before the drop
+    P[SAW2] = [{**n, "duration": round(min(n["duration"], hole - n["time"]), 4)}
+               if n["time"] < q1 - EPS else n
+               for n in P[SAW2] if not hole - EPS <= n["time"] < q1 - EPS]
+    # Nik: no soft outro - the track is cut off hard at the end of the drop
+    # (the outro section stays in the timeline only so the code above works)
+    end = TL["outro"][0]
+    for ch in P:
+        P[ch] = [{**n, "duration": round(min(n["duration"], end - n["time"] - 0.005), 4)}
+                 for n in P[ch] if n["time"] < end - EPS]
+    # ...and ends with one last blow: half a second of silence (like before the
+    # drop), then everything hits once and rings out on F (Nik: "needs an ending")
+    t = round(end + 0.5 * BASE_BPM / 60, 4)
+    last = [(KICK, 60, 0.3), (CLAP, CLAP_PITCH, 0.3), (SNARE, 60, 0.3),
+            (BASS, ROOT_808["Fm"], 4.0)]
+    last += [(SAW2, m, 3.0) for m in (53, 65, 77, 89)] + [(SAW, m, 3.0) for m in (53, 65, 77)]
+    for ch, m, d in last:
+        P[ch].append({"midi": m, "time": t, "duration": d, "velocity": 1.0})
     return P
 
 

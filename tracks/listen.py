@@ -33,7 +33,7 @@ def where(seconds: float) -> str:
         if beats >= tl[0] - track.EPS:
             i = max(k for k in range(len(tl)) if tl[k] <= beats + track.EPS)
             i = min(i, len(tl) - 2)
-            beat = i + (beats - tl[i]) / (tl[i + 1] - tl[i])
+            beat = max(0.0, i + (beats - tl[i]) / (tl[i + 1] - tl[i]))
             fl_bar = int(beats // 4) + 1  # what FL's big counter shows (B:S:T)
             return (f"FL bar {fl_bar} = {seconds:.1f} s = "
                     f"{name} bar {int(beat // 4) + 1} beat {beat % 4 + 1:.1f}")
@@ -44,7 +44,15 @@ def play(start: float, dur: float = 6.0, rec: bool = False) -> None:
     c = track.get_connection()
     c.ensure_connected()
     track.send(c, "transport.stop")
-    track.send(c, "transport.setPosition", {"position": int(start * 1000), "mode": 0})
+    # stop() moves the cursor back to where play started a moment later and can
+    # undo a setPosition sent right after it: set, read back, repeat until it holds
+    for _ in range(10):
+        track.send(c, "transport.setPosition", {"position": int(start * 1000), "mode": 0})
+        time.sleep(0.15)
+        if abs(track.send(c, "transport.getPos")["ms"] / 1000 - start) < 0.1:
+            break
+    else:
+        raise RuntimeError(f"FL did not move to {start} s")
     proc = None
     if rec:
         proc = subprocess.Popen(["ffmpeg", "-loglevel", "error", "-y", "-f", "avfoundation",
@@ -52,6 +60,9 @@ def play(start: float, dur: float = 6.0, rec: bool = False) -> None:
         time.sleep(0.3)
     track.send(c, "transport.start")
     p0 = track.send(c, "transport.getPos")
+    if abs(p0["ms"] / 1000 - start) > 0.5:
+        track.send(c, "transport.stop")
+        raise RuntimeError(f"FL started at {p0['ms'] / 1000:.1f} s, not {start} s")
     time.sleep(dur)
     p1 = track.send(c, "transport.getPos")
     track.send(c, "transport.stop")
