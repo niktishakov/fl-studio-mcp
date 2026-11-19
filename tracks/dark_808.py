@@ -469,7 +469,9 @@ SAW2_PARAMS = [(0, 0.0), (4, 0.0), (2, 0.0), (3, 0.0), (7, 0.2), (9, 0.04),
 CLAP_REC = [("FType", 2 / 7), ("FCut", 0.6), ("FRes", 0.55)]
 CLAP_EQ = [{"band": 0, "gain": 0.3}, {"band": 1, "gain": 0.85, "bw": 0.2},
            {"band": 2, "gain": 0.6}]
-KEYS_PARAMS = [(14, 0.55), (2, 0.8), (4, 0.75), (11, 0.6), (12, 0.5)]
+KEYS_PARAMS = [(14, 0.55), (2, 0.8), (4, 0.75), (11, 0.6), (12, 0.5),
+               # set earlier by the lofi script - now here so a rebuild is complete
+               (5, 0.25), (7, 0.25), (13, 0.45)]
 VOLUMES = {KICK: 0.72, CLAP: 0.55, HAT: 0.36, SNARE: 0.45, BASS: 0.72, KEYS: 0.62, SAW: 0.45,
            PIANO: 0.8, SAW2: 0.45, FLEX: 0.7}  # PIANO = "Hook Keys"
 VOLUMES[HAT] = 0.7  # hats were not audible (Nik): measured +1.4 dB over the mix at 0.5
@@ -504,6 +506,9 @@ def main():
     cmds += [("plugins.setParamValue",
               {"plugin_index": PIANO, "param_index": prm["index"], "value": prm["value"]})
              for prm in keys_params]
+    cmds += [("channels.routeToMixer", {"channel_index": KEYS, "mixer_track": 6}),
+             ("mixer.setTrackName", {"track": 6, "name": "Keys"}),
+             ("channels.mute", {"index": 7, "muted": True})]  # placeholder channel 7
     cmds += [("channels.setName", {"index": PIANO, "name": "Hook Keys"}),
              ("mixer.setTrackName", {"track": 8, "name": "Hook Keys"}),
              ("mixer.setTrackVolume", {"track": 8, "volume": 0.8}),
