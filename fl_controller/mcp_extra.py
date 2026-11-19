@@ -326,7 +326,22 @@ def handle_plugins_preset(params):
     return out
 
 
+def handle_transport_get_pos(params):
+    """Exact play position: ms, seconds, abs ticks, beats (PPQ), bar hint.
+    Use it to prove which part of the track is sounding (not the start request)."""
+    ppq = general.getRecPPQ()
+    ticks = transport.getSongPos(midi.SONGLENGTH_ABSTICKS)
+    return {"ms": transport.getSongPos(midi.SONGLENGTH_MS),
+            "s": transport.getSongPos(midi.SONGLENGTH_S),
+            "ticks": ticks, "beats": ticks / ppq, "ppq": ppq,
+            "hint": transport.getSongPosHint(),
+            "playing": bool(transport.isPlaying()),
+            "song_mode": transport.getLoopMode() == 1,
+            "bpm": _tempo_bpm()}
+
+
 EXTRA_HANDLERS = {
+    "transport.getPos": handle_transport_get_pos,
     "plugins.preset": handle_plugins_preset,
     "batch": handle_batch,
     "channels.getRec": handle_channels_get_rec,
