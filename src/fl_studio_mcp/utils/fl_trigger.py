@@ -9,6 +9,7 @@ from __future__ import annotations
 import platform
 import subprocess
 import time
+from pathlib import Path
 from typing import Callable
 
 # Delay after triggering to allow FL Studio to process
@@ -16,6 +17,50 @@ TRIGGER_DELAY = 2.0
 
 # macOS bundle id of FL Studio (stable across yearly releases)
 FL_BUNDLE_ID = "com.image-line.flstudio"
+
+# Every time FL's UI is touched (focus stolen, window raised) a line goes here,
+# so the GUI cost of a session can be counted: `fl gui`.
+GUI_LOG = Path.home() / "Library/Caches/fl-studio-mcp/gui.log"
+
+
+def log_gui(kind: str) -> None:
+    try:
+        GUI_LOG.parent.mkdir(parents=True, exist_ok=True)
+        with GUI_LOG.open("a") as f:
+            f.write(f"{time.strftime('%Y-%m-%d %H:%M:%S')} {kind}\n")
+    except OSError:
+        pass
+
+
+def fl_pid() -> int | None:
+    r = subprocess.run(["pgrep", "-f", "FL Studio[^/]*\\.app/Contents/MacOS/"],
+                       capture_output=True, text=True)
+    pids = [int(x) for x in r.stdout.split()]
+    return pids[0] if pids else None
+
+
+def trigger_background() -> bool:
+    """Send Cmd+Opt+Y straight to FL's process (CGEventPostToPid): FL is not
+    brought forward, the user's app keeps focus. Works only if FL handles the
+    shortcut without being frontmost - the caller checks the result and falls
+    back to the focus trigger."""
+    if platform.system() != "Darwin":
+        return False
+    try:
+        import Quartz
+    except ImportError:
+        return False
+    pid = fl_pid()
+    if pid is None:
+        return False
+    flags = Quartz.kCGEventFlagMaskCommand | Quartz.kCGEventFlagMaskAlternate
+    for down in (True, False):
+        ev = Quartz.CGEventCreateKeyboardEvent(None, 16, down)  # 16 = "Y"
+        Quartz.CGEventSetFlags(ev, flags)
+        Quartz.CGEventPostToPid(pid, ev)
+        time.sleep(0.02)
+    log_gui("bg-key")
+    return True
 
 
 class FLStudioTrigger:
@@ -76,6 +121,7 @@ class FLStudioTrigger:
             )
             if result.returncode != 0:
                 return self._trigger_macos_pynput()
+            log_gui("focus-key")
             return True
         except subprocess.TimeoutExpired:
             return False

@@ -632,12 +632,68 @@ NAMES = {"kick": KICK, "clap": CLAP, "hat": HAT, "snare": SNARE,
          "flex": FLEX, "riser": RISER, "down": DOWN}
 
 
+# Rules that must hold whatever is edited (fl check runs them before writing)
+def _no_hook_outside_drop(P):
+    d0, d1 = TL["drop"][0], TL["outro"][0]
+    bad = [n for n in P[BASS] if n.get("porta") and not d0 - EPS <= n["time"] < d1]
+    return [f"808 glide (hook) outside the drop at beat {bad[0]['time']}"] if bad else []
+
+
+def _one_note_saw(P):
+    t0 = (ONE_NOTE_FROM_FL_BAR - 1) * 4
+    bad = {n["midi"] for ch in (SAW, SAW2) for n in P[ch]
+           if n["time"] >= t0 - EPS and n["midi"] not in (53, 65, 77, 89)}
+    return [f"PoiZone not on F after FL bar {ONE_NOTE_FROM_FL_BAR}: {sorted(bad)}"] if bad else []
+
+
+def _no_rhythm_before_drop(P):
+    q0, q1 = at("break", 5, 0), TL["drop"][0]
+    bad = [ch for ch in (KICK, CLAP, HAT, SNARE, BASS)
+           if any(q0 - EPS <= n["time"] < q1 - EPS for n in P[ch])]
+    return [f"rhythm in the beatless bars before the drop: channels {bad}"] if bad else []
+
+
+def _saw_gap_before_drop(P):
+    q1 = TL["drop"][0]
+    hole = q1 - 0.5 * BASE_BPM / 60
+    bad = [n for ch in (SAW, SAW2) for n in P[ch]
+           if n["time"] < q1 - EPS and n["time"] + n["duration"] > hole + EPS]
+    return ["PoiZone sounds in the 0.5 s gap before the drop"] if bad else []
+
+
+CHECKS = [("hook 808 only in the drop", _no_hook_outside_drop),
+          ("one-note PoiZone", _one_note_saw),
+          ("no rhythm FL bars 36-37", _no_rhythm_before_drop),
+          ("saw gap before the drop", _saw_gap_before_drop)]
+
+
+def final_parts(extra=()):
+    """Generated notes + the edits in dark_808.edits.json (+ extra ops)."""
+    import fl_edit
+    P = parts()
+    fl_edit.apply_all(P, fl_edit.load("dark_808"), NAMES, extra)
+    return P
+
+
 def main():
     args = sys.argv[1:]
     force = "--force" in args
     want = [NAMES[a] for a in args if a in NAMES] or list(NAMES.values())
     c = get_connection()
     c.ensure_connected()
+    t0 = time.time()
+    apply_settings(c)
+    P = final_parts()
+    written = write_changed(c, "dark_808", 1, P, want, force=force)
+    print("written:", written or "nothing changed", f"| total {time.time() - t0:.1f} s")
+    if "--verify" in args:  # read the channels back from FL, compare note by note
+        res = verify(c, P, want)
+        print("verify:", "ALL IDENTICAL" if all(v[0] for v in res.values()) else res)
+    print("pattern", send(c, "patterns.info"))
+
+
+def apply_settings(c):
+    """Sounds, routing, levels: one batch (~0.1 s), no GUI."""
     t0 = time.time()
     keys_params = send(c, "plugins.getParams", {"index": KEYS})["params"]
     cmds = [("tempo.setMap", {"points": [], "enabled": False}),
@@ -698,13 +754,6 @@ def main():
              ("mixer.setTrackName", {"track": 10, "name": "Pad"})])
     print(f"settings: {len(cmds)} commands in one batch ({time.time() - t0:.1f} s) | "
           f"length {TOTAL * 60 / BASE_BPM:.1f} s")
-    P = parts()
-    written = write_changed(c, "dark_808", 1, P, want, force=force)
-    print("written:", written or "nothing changed", f"| total {time.time() - t0:.1f} s")
-    if "--verify" in args:  # read the channels back from FL, compare note by note
-        res = verify(c, P, want)
-        print("verify:", "ALL IDENTICAL" if all(v[0] for v in res.values()) else res)
-    print("pattern", send(c, "patterns.info"))
 
 
 if __name__ == "__main__":

@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import time
 from pathlib import Path
 
@@ -22,7 +23,7 @@ from fl_studio_mcp.tools.piano_roll import (
     _write_request,
 )
 from fl_studio_mcp.utils.connection import get_connection  # noqa: F401  (re-export)
-from fl_studio_mcp.utils.fl_trigger import trigger_fl_studio
+from fl_studio_mcp.utils.fl_trigger import trigger_background, trigger_fl_studio
 
 # Marker far beyond any track (128 bars): never collides with a real note.
 # (Step 511 was inside the track: a real kick there passed as the marker.)
@@ -57,17 +58,34 @@ def run_piano_roll(requests):
             f.unlink()
     _clear_request_file()  # a leftover queue would be appended to (duplicate notes)
     _write_request(requests)
+
+    def wait(ticks):
+        for _ in range(ticks):
+            # an empty queue produces no response file, only the state export
+            if state.exists() and (resp.exists() or not requests):
+                try:
+                    st = json.loads(state.read_text())
+                    return (json.loads(resp.read_text()) if requests else {}), st
+                except json.JSONDecodeError:
+                    pass
+            time.sleep(0.1)
+        return None, None
+
+    global BG_OK
+    if BG_OK is not False and trigger_background():
+        # the script starts at once if FL takes the key in the background
+        r = wait(15 if BG_OK is None else 80)
+        if r[0] is not None or r[1] is not None:
+            BG_OK = True
+            return r
+        BG_OK = False  # FL ignores background keys: use the focus trigger from now on
+        print("  background trigger did not work, using the focus trigger")
     trigger_fl_studio(delay=0.2)
-    for _ in range(80):  # up to 8 s: 400+ notes take longer than 5 s (retries cost more)
-        # an empty queue produces no response file, only the state export
-        if state.exists() and (resp.exists() or not requests):
-            try:
-                st = json.loads(state.read_text())
-                return (json.loads(resp.read_text()) if requests else {}), st
-            except json.JSONDecodeError:
-                pass
-        time.sleep(0.1)
-    return None, None
+    return wait(80)  # up to 8 s: 400+ notes take longer than 5 s
+
+
+# None = not tried yet in this run; True/False = background trigger works or not
+BG_OK = None if os.environ.get("FL_TRIGGER", "bg") == "bg" else False
 
 
 def write_notes(c, ch, notes, attempts=4):
@@ -95,7 +113,9 @@ def write_notes(c, ch, notes, attempts=4):
 
 
 def fingerprint(notes):
-    return hashlib.sha1(json.dumps(notes, sort_keys=True).encode()).hexdigest()
+    """Order-independent: edits re-sort notes, the content is what matters."""
+    rows = sorted(json.dumps(n, sort_keys=True) for n in notes)
+    return hashlib.sha1("\n".join(rows).encode()).hexdigest()
 
 
 def write_changed(c, name, pattern, parts, channels, force=False):

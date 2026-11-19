@@ -40,7 +40,7 @@ def where(seconds: float) -> str:
     return "before the track"
 
 
-def play(start: float, dur: float = 6.0, rec: bool = False) -> None:
+def play(start: float, dur: float = 6.0, rec: bool = False, quiet: bool = False) -> None:
     c = track.get_connection()
     c.ensure_connected()
     track.send(c, "transport.stop")
@@ -74,7 +74,8 @@ def play(start: float, dur: float = 6.0, rec: bool = False) -> None:
     print(f"  start: {where(a)}\n  end:   {where(b)}")
     if proc:
         proc.wait()
-        loudness()
+        if not quiet:
+            loudness()
 
 
 def loudness() -> None:
