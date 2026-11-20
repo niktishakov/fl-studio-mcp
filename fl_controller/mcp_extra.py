@@ -385,7 +385,50 @@ def handle_mixer_volume_db(params):
     return {"track": t, "db": mixer.getTrackVolume(t, 1), "volume": mixer.getTrackVolume(t)}
 
 
+def handle_debug_dir(params):
+    """Names in an FL API module, filtered: {"module": "ui", "filter": "rowser"}."""
+    mod = globals().get(params.get("module", "ui"))
+    flt = params.get("filter", "").lower()
+    return {"names": [n for n in dir(mod) if flt in n.lower()]}
+
+
+def handle_browser(params):
+    """Drive FL's browser: steps [["down"|"up"|"toggle"|"tab+"|"tab-"|"select"|"menu+"|"menu-"|"preview", n], ...].
+    Returns the focused node after each step (caption, file type)."""
+    ui.showWindow(midi.widBrowser)
+    ui.setFocused(midi.widBrowser)
+    out = []
+    for step in params.get("steps", []):
+        what, n = step[0], int(step[1]) if len(step) > 1 else 1
+        for _ in range(n):
+            if what == "down":
+                ui.navigateBrowser(midi.FPT_Down, 0)
+            elif what == "up":
+                ui.navigateBrowser(midi.FPT_Up, 0)
+            elif what == "toggle":
+                ui.toggleBrowserNode()
+            elif what == "tab+":
+                ui.navigateBrowserTabs(midi.FPT_Right)
+            elif what == "tab-":
+                ui.navigateBrowserTabs(midi.FPT_Left)
+            elif what == "menu+":
+                ui.navigateBrowserMenu(1, 0)
+            elif what == "menu-":
+                ui.navigateBrowserMenu(0, 0)
+            elif what == "select":
+                ui.selectBrowserMenuItem()
+            elif what == "preview":
+                ui.previewBrowserMenuItem()
+            elif what == "close":
+                ui.closeActivePopupMenu()
+        out.append([what, n, ui.getFocusedNodeCaption(), ui.getFocusedNodeFileType(),
+                    bool(ui.isInPopupMenu())])
+    return {"steps": out}
+
+
 EXTRA_HANDLERS = {
+    "ui.browser": handle_browser,
+    "debug.dir": handle_debug_dir,
     "channels.volumeDb": handle_channels_volume_db,
     "mixer.volumeDb": handle_mixer_volume_db,
     "transport.getPos": handle_transport_get_pos,
