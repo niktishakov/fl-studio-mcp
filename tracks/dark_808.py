@@ -720,6 +720,9 @@ SUB_PARAMS = [(1, 0.0), (2, 0.0), (3, 0.5), (6, 0.0), (13, 0.0)]
 # that decays ~14 dB/s whatever the sustain (measured): the sub holds the low
 # end. A little drive adds harmonics that headphones can play.
 BASS_PARAMS = [(3, 0.5), (4, 0.5), (11, 0.25)]
+# Nik chose it from 5 presets (2026-11-20, "stock sounds"): same pitch as
+# Astronomic (F1 at midi 53), longest body, most low end (-13.8 dB sub)
+BASS_PRESET = "808 Behemoth"
 VOLUMES = {KICK: 0.72, CLAP: 0.55, HAT: 0.36, SNARE: 0.45, BASS: 0.72, KEYS: 0.62, SAW: 0.45,
            PIANO: 0.8, SAW2: 0.45, FLEX: 0.55, RISER: 0.6, DOWN: 0.55,
            SUB: 1.0}  # PIANO = Hook Keys; SUB 1.0: +4.5 dB at 30-70 Hz in the drop
@@ -825,6 +828,8 @@ def main():
 def apply_settings(c):
     """Sounds, routing, levels: one batch (~0.1 s), no GUI."""
     t0 = time.time()
+    names = send(c, "plugins.preset", {"channel": BASS, "list": True}, timeout=15)["presets"]
+    print("808 preset:", goto_preset(c, BASS, names.index(BASS_PRESET)))  # before BASS_PARAMS
     keys_params = send(c, "plugins.getParams", {"index": KEYS})["params"]
     cmds = [("tempo.setMap", {"points": [], "enabled": False}),
             ("transport.stop", {}),
