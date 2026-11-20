@@ -613,8 +613,10 @@ def parts():
 # the same 2-bar drum loop for 20 bars and the PoiZone holds one note (Nik).
 # Something new every 4 bars; a short stop at the end of each 4-bar phrase;
 # from bar 9 a dark pad; the 808 hook at bars 1, 9 and 17. (bar index 0-based)
-PHRASE_STOPS = (3, 7, 11, 15)  # last half beat of these bars: drums and bass out
-HALFTIME = (8, 9, 10, 11)  # Nik: "still weak" -> a beat switch: bars 9-12 half-time
+PHRASE_STOPS = (3, 7, 10, 15)  # last half beat of these bars: drums and bass out
+# Nik: "still weak" -> a beat switch: bars 9-11 half-time. 3 bars, not 4 (Nik:
+# the beat comes back "unevenly" at FL bar 45, not on the 4-bar grid at 46)
+HALFTIME = (8, 9, 10)
 
 
 def develop_drop(P):
