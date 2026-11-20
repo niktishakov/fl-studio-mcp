@@ -500,6 +500,13 @@ def parts():
             r, t, f = CH[PROG[sec][bar % len(PROG[sec])]]
             for k, m in enumerate((r, t, f, r + 12)):
                 note(P[FLEX], m, sec, bar, 0.05 * k, 3.9, h(0.5, 0.03))
+    # review: "no wholeness" - the same dark pad runs quietly under the intro
+    # and the verse too, so it ties prelude, verse, break and drop together
+    for sec in ("intro", "verse"):
+        for bar in range(INFO[sec][0]):
+            r, t, f = CH[PROG[sec][bar % len(PROG[sec])]]
+            for k, m in enumerate((r - 12, r, t, f)):
+                note(P[FLEX], m, sec, bar, 0.04 * k, 3.9, h(PAD_GLUE_VEL, 0.03))
     # No stacked duplicates (same pitch at the same time = +6 dB on that hit):
     # merge them, keeping the stronger velocity and the longer note.
     for ch, notes in P.items():
@@ -574,6 +581,7 @@ def parts():
                if n["time"] < q1 - EPS else n
                for n in P[SAW2] if not hole - EPS <= n["time"] < q1 - EPS]
     develop_drop(P)
+    unify_transitions(P)
     # Nik: no soft outro - the track is cut off hard at the end of the drop
     # (the outro section stays in the timeline only so the code above works)
     end = TL["outro"][0]
@@ -647,6 +655,34 @@ def develop_drop(P):
                     n = {**n, "duration": round(g0 - n["time"] - 0.005, 4)}
                 kept.append(n)
             P[ch] = kept
+
+
+# Transitions (review: "no wholeness"): every part enters the same way - the
+# drums and the bass stop for the last quarter beat of the old part, then one
+# common hit on the 1 (kick, 808, snare, hat). The drop already works so.
+PAD_GLUE_VEL = 0.62  # -48 dB at 0.45 was inaudible; target ~10 dB under the saw
+STOP_BEATS = 0.25
+
+
+def unify_transitions(P):
+    names = [n for n, *_ in SECTIONS]
+    for sec in ("intro", "verse", "break"):
+        prev = names[names.index(sec) - 1]
+        t1 = TL[sec][0]
+        g0 = t1 - STOP_BEATS * (TL[prev][-1] - TL[prev][-2])
+        for ch in (KICK, CLAP, HAT, SNARE, BASS):
+            kept = []
+            for n in P[ch]:
+                if g0 - EPS <= n["time"] < t1 - EPS:
+                    continue
+                if n["time"] < g0 - EPS < n["time"] + n["duration"]:
+                    n = {**n, "duration": round(g0 - n["time"] - 0.005, 4)}
+                kept.append(n)
+            P[ch] = kept
+        root = ROOT_808[PROG[sec][0]]
+        for ch, m, d, v in ((KICK, 60, 0.25, 0.95), (SNARE, 60, 0.2, 0.9),
+                            (HAT, 60, 0.2, 0.8), (BASS, root, 2.0, 0.95)):
+            note(P[ch], m, sec, 0, 0, d, v)
 
 
 # ---------------------------------------------------------------- sound
