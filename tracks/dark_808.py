@@ -239,6 +239,8 @@ def parts():
                     kicks = [0, 0.75, 1.5, 2.5] if bar % 2 == 0 else [0, 1.75, 2.5, 3.25]
                 elif blk == 3:
                     kicks = [0, 0.75, 2.5, 3.5]
+            elif sec == "drop" and bar in HALFTIME:  # half-time: heavy and sparse
+                kicks = [0, 1.75] if bar % 2 == 0 else [0, 0.75, 3.5]
             elif sec == "drop":
                 kicks = [0, 0.75, 2.5] if bar % 2 == 0 else [0, 1.5, 2.75, 3.5]
             elif sec == "intro" and bar == 3:  # half-time preview of the verse groove
@@ -279,7 +281,7 @@ def parts():
                     note(P[CLAP], 60, sec, bar, c, 0.25,
                          1.0 if (bar, c) == (5, 0) else h(0.85))
             elif sec == "drop":  # kick first, then the clap: backbeat on 2 and 4 (Nik)
-                for c in (1, 3):
+                for c in ((2,) if bar in HALFTIME else (1, 3)):  # half-time: on 3
                     note(P[CLAP], 60, sec, bar, c, 0.25, h(0.95))
                 if bar == 0:  # impact on the drop's first beat: everything at once
                     # no clap on the 1: it hid the kick (Nik: "kick first, then clap")
@@ -296,7 +298,7 @@ def parts():
                     gv = 0.32 + 0.025 * ((bar - 12) * 4 + i // 4) + (0.12 if i % 4 == 0 else 0)
                     note(P[HAT], 60, sec, bar, i / 4, 0.06, h(gv, 0.03))
             elif sec in ("verse", "drop"):
-                step = 0.5
+                step = 1.0 if sec == "drop" and bar in HALFTIME else 0.5
                 for i in range(int(bpb / step)):
                     b = i * step
                     note(P[HAT], 60, sec, bar, b, 0.1, h(0.62 if b % 1 == 0 else 0.42))
@@ -308,7 +310,8 @@ def parts():
                         note(P[SNARE], 60, sec, bar, b, 0.06, min(1.0, 0.7 + 0.06 * j))
                     for b, v in ((3, 0.85), (3.75, 1.0)):  # clap marks the fill
                         note(P[CLAP], 60, sec, bar, b, 0.25, v)
-                elif last4 or (sec == "drop" and bar % 2 == 1):
+                elif last4 or (sec == "drop" and bar % 2 == 1
+                               and (bar not in HALFTIME or bar == HALFTIME[-1])):
                     # 16th-triplet roll on the last beat
                     for j in range(6):
                         note(P[HAT], 60, sec, bar, bpb - 1 + j / 6, 0.08, 0.35 + j * 0.06)
@@ -598,6 +601,7 @@ def parts():
 # Something new every 4 bars; a short stop at the end of each 4-bar phrase;
 # from bar 9 a dark pad; the 808 hook at bars 1, 9 and 17. (bar index 0-based)
 PHRASE_STOPS = (3, 7, 11, 15)  # last half beat of these bars: drums and bass out
+HALFTIME = (8, 9, 10, 11)  # Nik: "still weak" -> a beat switch: bars 9-12 half-time
 
 
 def develop_drop(P):
@@ -605,14 +609,19 @@ def develop_drop(P):
         note(P[ch], m, "drop", bar, beat, d, v)
     for bar in range(20):
         blk = bar // 4
-        if blk >= 1:          # 5-8: 16th hat pick-ups
+        if bar in HALFTIME:   # 9-12 half-time (see the drum patterns): only the pad
+            pass
+        elif blk >= 1:        # 5-8: 16th hat pick-ups
             for b in (1.75, 3.75):
                 add(HAT, 60, bar, b, 0.06, h(0.36, 0.03))
-        if blk >= 2:          # 9-12: extra kick + 16th hats in the second half
+        if blk >= 3:          # 13-20: extra kick + 16th hats in the second half
             if bar % 2 == 0:
                 add(KICK, 60, bar, 3.25, 0.25, h(0.7))
             for i in range(8, 16, 2):
                 add(HAT, 60, bar, i / 4 + 0.25, 0.06, h(0.3, 0.03))
+        if bar == HALFTIME[-1] + 1:  # back to full speed: hit everything on the 1
+            add(SNARE, 60, bar, 0, 0.2, 1.0)
+            add(HAT, 60, bar, 0, 0.2, 0.9)
         if blk >= 3:          # 13-16: ghost snares
             for b in (1.75, 2.75):
                 add(SNARE, 60, bar, b, 0.06, h(0.32, 0.03))
