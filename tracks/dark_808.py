@@ -221,7 +221,8 @@ DROP_BARS = 20  # one pass of the drop; it plays twice
 # our hook - we loop the track"): the one-note F gives way to the verse's
 # strummed PoiZone chords, the hook grows from a fragment to the full cry.
 VERSE_SAW_RHYTHM = ((0, .95), (0.75, .95), (1.5, 1.7), (3, .7), (3.5, .75))
-SECOND_HALF_HOOK = {24: "frag", 28: "full", 32: "full"}  # drop bar -> form
+SECOND_HALF_HOOK = {}  # drop bar -> form; the saw hooks (24 frag, 28 and 32
+# full) were removed too (Nik, 2026-11-20) - the 808 hook still plays
 # Nik: "bring the intro piano back, distorted, to end the track in the drop":
 # the hook "cry" on Hook Keys with heavy overdrive (not the prelude theme),
 # the last 4 drop bars, then the final hit closes the loop of the track.
