@@ -165,8 +165,8 @@ def measure(wav: Path) -> dict:
     raw = subprocess.run(["ffmpeg", "-loglevel", "error", "-i", str(wav), "-ac", "1",
                           "-ar", "48000", "-f", "f32le", "-"], capture_output=True).stdout
     x = np.frombuffer(raw, np.float32)
-    if len(x) < 4800:
-        return {}
+    if len(x) < 4800 or float(np.abs(x).max()) < 1e-6:
+        return {"rms dB": "SILENCE"}  # nothing reached Background Music
     db = lambda y: 20 * np.log10(np.sqrt(np.mean(y ** 2)) + 1e-9)  # noqa: E731
     spec = np.abs(np.fft.rfft(x * np.hanning(len(x))))
     f = np.fft.rfftfreq(len(x), 1 / 48000)
