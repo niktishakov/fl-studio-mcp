@@ -83,7 +83,12 @@ PROG = {"prelude": ["Fm", "Db", "Bbm", "C"] * 2, "intro": ["Fm", "Fm", "Db", "C"
 HOOK = [(73, 0.0, 1.5, 0.78), (72, 1.5, 0.45, 0.62), (65, 2.0, 0.45, 0.6),
         (53, 2.5, 4.0, 0.72), (41, 2.5, 4.0, 0.55)]
 # Short form: just the cry Db -> C.
-CLAP_PITCH = 58  # clap sample 2 semitones down: darker, dirtier
+# Drums (2026-11-20, "stock FL sounds"): Nik chose ModeAudio samples by ear,
+# unprocessed - they are loaded by dragging (fl_drums / CLAUDE.md), the stock
+# 808 kit processing (clap -2 st, band-pass, EQ boosts) is off.
+DRUM_SAMPLES = {KICK: "Kicks/Power CrunchKick 02.wv", CLAP: "Claps/Power Clap 01.wv",
+                HAT: "Hi Hats/Power CHat 01.wv", SNARE: "Snares/MA Trauma Snare 01.wv"}
+CLAP_PITCH = 60  # was 58 for the stock clap
 PRELUDE_HOOK_VEL = 1.0  # measured: same level as prelude pass 2 (Nik)
 HOOK_FRAG = [(73, 0.0, 1.0, 0.8), (72, 1.0, 1.5, 0.7)]
 # Where it sounds: (section, bar, beat, channel, "full"/"frag"). The stock clean
@@ -701,9 +706,9 @@ SAW2_PARAMS = [(0, 0.0), (4, 0.0), (2, 0.0), (3, 0.0), (7, 0.2), (9, 0.04),
                (10, 0.7), (12, 0.3), (25, 0.2), (31, 0.0), (39, 0.0)]
 # Dirty clap: resonant band-pass on the sampler channel (FType 2/7 = band pass)
 # and the mixer's built-in EQ on Insert 2: low cut, narrow +12.6 dB at 1.5 kHz.
-CLAP_REC = [("FType", 2 / 7), ("FCut", 0.6), ("FRes", 0.55)]
-CLAP_EQ = [{"band": 0, "gain": 0.3}, {"band": 1, "gain": 0.85, "bw": 0.2},
-           {"band": 2, "gain": 0.6}]
+CLAP_REC = [("FType", 0.0), ("FCut", 1.0), ("FRes", 0.0)]  # filter open (was band pass)
+CLAP_EQ = [{"band": 0, "gain": 0.5}, {"band": 1, "gain": 0.5, "bw": 0.267},
+           {"band": 2, "gain": 0.5}]  # flat: the new clap is used as Nik heard it
 # FL Keys, "less cheap" (Nik): almost no overdrive (it flattened the sound),
 # softer hammer, a bit less muffle, wide stereo, slight detune for life,
 # longer release, no tremolo.
@@ -730,7 +735,8 @@ VOLUMES = {KICK: 0.72, CLAP: 0.55, HAT: 0.36, SNARE: 0.45, BASS: 0.72, KEYS: 0.6
 # Channel volume in dB (0 = channel maximum), set after VOLUMES. Measured with
 # fl stems 39-41 (drop): the PoiZone lead was 21 dB under the 808, kick 6-8 dB
 # under the 808 + sub, sub the loudest of all.
-MIX_DB = {SAW2: -2.2, KICK: -2.7, CLAP: -5.0, HAT: -0.2, SUB: -4.0,
+# new drum samples are 5-8 dB hotter than the stock kit: back to the balance
+MIX_DB = {SAW2: -2.2, KICK: -9.2, CLAP: -10.5, HAT: -7.2, SUB: -4.0,
           SAW: -5.2,   # verse (fl stems 21-23): the PoiZone melody was 14 dB under the kick
           PIANO: -4.0}  # drop counter-line: -27 dB, a little over the PoiZone (-31)
 MASTER_VOL = 0.61  # ~-5.6 dB (was 0.66 = -4.1): headroom, the louder mix peaked at +0.3 dB
@@ -748,8 +754,8 @@ RISER_PARAMS = [(9, 1.0), (18, 0.08), (19, 0.5), (10, 1.0), (11, 0.6), (13, 1.0)
                 (22, 0.6), (25, 0.3), (29, 0.4), (15, 0.75), (31, 0.0), (39, 0.0)]
 VOLUMES[HAT] = 0.7  # hats were not audible (Nik): measured +1.4 dB over the mix at 0.5
 # Hats: brighter on their mixer track (Insert 3): less low, +high shelf band
-HAT_EQ = [{"band": 0, "gain": 0.35}, {"band": 2, "gain": 0.78}]
-HAT_TRACK_VOL = 1.0  # Insert 3 at +5.6 dB
+HAT_EQ = [{"band": 0, "gain": 0.5}, {"band": 2, "gain": 0.5}]  # flat: new sample
+HAT_TRACK_VOL = 0.8  # Insert 3 at 0 dB (was +5.6 for the stock hat)
 # Hook piano: second FL Keys, clean and soft (see tracks/hooks.py)
 PIANO_PARAMS = [(14, 0.0), (2, 0.42), (4, 0.6), (5, 0.5), (1, 0.75),
                 (7, 0.3), (11, 0.45), (12, 0.5), (0, 0.0)]

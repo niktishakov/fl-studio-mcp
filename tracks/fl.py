@@ -398,6 +398,26 @@ def click(x: int, y: int) -> None:
         None, Quartz.kCGEventMouseMoved, old, Quartz.kCGMouseButtonLeft))
 
 
+def drag(x0: int, y0: int, x1: int, y1: int, steps: int = 20) -> None:
+    """A real mouse drag (CGEvent) from one screen point to another."""
+    import Quartz
+    old = Quartz.CGEventGetLocation(Quartz.CGEventCreate(None))
+    def post(t, x, y):
+        Quartz.CGEventPost(Quartz.kCGHIDEventTap, Quartz.CGEventCreateMouseEvent(
+            None, t, (x, y), Quartz.kCGMouseButtonLeft))
+    post(Quartz.kCGEventMouseMoved, x0, y0)
+    time.sleep(0.1)
+    post(Quartz.kCGEventLeftMouseDown, x0, y0)
+    time.sleep(0.15)
+    for i in range(1, steps + 1):
+        post(Quartz.kCGEventLeftMouseDragged, x0 + (x1 - x0) * i / steps, y0 + (y1 - y0) * i / steps)
+        time.sleep(0.02)
+    time.sleep(0.15)
+    post(Quartz.kCGEventLeftMouseUp, x1, y1)
+    time.sleep(0.1)
+    post(Quartz.kCGEventMouseMoved, *old)
+
+
 def close_dialogs(parts=("Buy FL Studio", "Welcome to FL Studio")) -> list[str]:
     """Trial dialogs block the MIDI controller (timeouts) and Escape does not
     close them. FL forward, then each dialog's own x button (14/15 pt from its
