@@ -173,17 +173,30 @@ def verify(c, parts, channels, ppq=96):
 
 def goto_preset(c, ch, k):
     """Select preset number k of the plugin on channel ch. The preset name only
-    updates after FL's event loop runs and multi-steps overshoot, so step one
-    preset at a time and re-read the name after each step."""
-    info = send(c, "plugins.preset", {"channel": ch, "list": True})
-    names = info["presets"]
+    updates after FL's event loop runs: jump by the whole difference in one
+    call, wait, re-read, then correct one step at a time. Reads are retried
+    (a reply can come back broken while FL is busy loading the preset)."""
+    def read(params):
+        for _ in range(5):
+            try:
+                return send(c, "plugins.preset", params, timeout=15)
+            except RuntimeError:
+                time.sleep(0.4)
+        raise RuntimeError("plugins.preset: no valid reply")
+    names = read({"channel": ch, "list": True})["presets"]
     target = names[k]
+    cur = read({"channel": ch})["preset"]
+    if cur != target and cur in names:
+        d = (k - names.index(cur)) % len(names)
+        step = d if d <= len(names) // 2 else d - len(names)
+        read({"channel": ch, "step": step})
+        time.sleep(0.6)
     for _ in range(len(names) + 2):
-        cur = send(c, "plugins.preset", {"channel": ch})["preset"]
+        cur = read({"channel": ch})["preset"]
         if cur == target:
             return cur
         idx = names.index(cur) if cur in names else 0
         step = 1 if (k - idx) % len(names) <= len(names) // 2 else -1
-        send(c, "plugins.preset", {"channel": ch, "step": step})
+        read({"channel": ch, "step": step})
         time.sleep(0.35)
     raise RuntimeError(f"preset {k} ({target!r}) not reached")

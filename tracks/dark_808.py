@@ -731,7 +731,7 @@ KEYS_PARAMS = [(14, 0.12), (2, 0.62), (4, 0.68), (11, 0.5), (12, 0.5),
                (5, 0.35), (7, 0.4), (13, 0.45), (9, 0.33), (1, 0.7)]
 # Pad under the piano (FLEX): chords held a whole bar in the prelude, the
 # bridge's first half and the outro; a little reverb, nothing "spacey".
-PAD_PRESET = 31  # "PAD Ashword"
+PAD_PRESET = 39  # "PAD Wrispi" - Nik chose it from 4 (2026-11-20); was 31 "PAD Ashword"
 PAD_FX = {"Space": 0.0, "Phaser": 0.0, "Chorus": 0.0, "Delay": 0.0, "Delay mix": 0.0,
           "Reverb": 1.0, "Reverb mix": 0.18}
 # Sub (3x Osc): osc 1 sine two octaves down, osc 2 and 3 silent
