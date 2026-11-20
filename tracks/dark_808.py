@@ -98,7 +98,7 @@ HOOK_AT = [("prelude", 7, 4.0 - HOOK[-1][1], KEYS, "full"),
 # and last in the outro. (midi, beat, len, vel, glide-in)
 HOOK_808 = [(61, 0.0, 1.5, 0.92, False), (60, 1.5, 0.5, 0.85, True),
             (65, 2.0, 0.5, 0.85, True), (53, 2.5, 3.5, 0.95, True)]
-HOOK_808_AT = [("drop", 0, 0), ("drop", 8, 0)]  # Nik: the bass hook only in the drop
+HOOK_808_AT = [("drop", 0, 0), ("drop", 8, 0), ("drop", 16, 0)]  # only in the drop (Nik)
 PORTA_808 = 0.35  # channel portamento time (normalized)
 DRIFT = 0.012     # +-beats of timing drift in the 5/4 arp (~ +-8 ms at 95 BPM)
 # break -> drop (Nik: the riser + 16th hats + snare roll build was "cheap"):
@@ -596,11 +596,7 @@ def parts():
 # Drop development (review 2026-11-20: "development is weak"): the drop was
 # the same 2-bar drum loop for 20 bars and the PoiZone holds one note (Nik).
 # Something new every 4 bars; a short stop at the end of each 4-bar phrase;
-# from bar 9 a dark pad, from bar 13 a keys counter-line. (bar index 0-based)
-DROP_KEYS_LINE = [[(80, 0, 1.5), (79, 1.5, .5), (77, 2, 2)],      # Fm: Ab G F
-                  [(75, 0, 1), (77, 1, 1), (72, 2, 2)],           # Fm: Eb F C
-                  [(78, 0, 1.5), (77, 1.5, .5), (73, 2, 2)],      # Gb: Gb F Db
-                  [(76, 0, 2), (79, 2, 1), (72, 3, 1)]]           # C:  E G C
+# from bar 9 a dark pad; the 808 hook at bars 1, 9 and 17. (bar index 0-based)
 PHRASE_STOPS = (3, 7, 11, 15)  # last half beat of these bars: drums and bass out
 
 
@@ -629,10 +625,8 @@ def develop_drop(P):
             r, t, f = CH[PROG["drop"][bar % 4]]
             for k, m in enumerate((r - 12, r, t, f)):
                 add(FLEX, m, bar, 0.04 * k, 3.9, h(0.65, 0.03))
-        if blk >= 3:          # counter-line from bar 13: dirty keys sound on its
-            for m, b, d in DROP_KEYS_LINE[bar % 4]:  # own channel ("Hook Keys")
-                for o in (0, -12):
-                    add(PIANO, m + o, bar, b, d, h(0.9 if o == 0 else 0.75, 0.03))
+        # (a keys counter-line from bar 13 was tried: "childish, weak,
+        # artificial" (Nik) - the 808 hook returns at bar 17 instead)
     for bar in PHRASE_STOPS:  # the stop: nothing but the saw for half a beat
         g0, g1 = at("drop", bar, 3.5), at("drop", bar + 1, 0)
         for ch in (KICK, CLAP, HAT, SNARE, BASS):
