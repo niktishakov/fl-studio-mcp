@@ -195,6 +195,18 @@ def h(v, s=0.05):
     return ("h", v, s)
 
 
+# Nik: the verse's bass line of FL bars 22-26 (block C: Bb Db Gb C) comes
+# back in the middle of the drop - from the return of the full beat (FL bar
+# 45), 4 drop bars, with the drop's rhythm. (drop bar index 0-based)
+DROP_VERSE_BASS = {11: "Bbm", 12: "Db", 13: "Gb", 14: "C"}
+
+
+def chord_at(sec, bar):
+    if sec == "drop" and bar in DROP_VERSE_BASS:
+        return DROP_VERSE_BASS[bar]
+    return PROG[sec][bar % len(PROG[sec])]
+
+
 # ---------------------------------------------------------------- parts
 def parts():
     P = {k: [] for k in (KICK, CLAP, HAT, SNARE, BASS, KEYS, SAW, SUB, PIANO, SAW2, FLEX,
@@ -227,7 +239,7 @@ def parts():
             note(P[ch], m, sec, bar, beat + b, d, min(1.0, v * boost))
     for sec, (bars, bpb) in INFO.items():
         for bar in range(bars):
-            chord = PROG[sec][bar % len(PROG[sec])]
+            chord = chord_at(sec, bar)
             root = ROOT_808[chord]
             last4 = bar % 4 == 3
             # ---- kick + 808 pattern (beats)
@@ -646,7 +658,7 @@ def develop_drop(P):
             for j in range(8):
                 add(SNARE, 60, bar, 3 + j / 8, 0.05, min(1.0, 0.45 + 0.07 * j))
         if blk >= 2:          # pad from bar 9: low dark chord, whole bar
-            r, t, f = CH[PROG["drop"][bar % 4]]
+            r, t, f = CH[chord_at("drop", bar)]
             for k, m in enumerate((r - 12, r, t, f)):
                 add(FLEX, m, bar, 0.04 * k, 3.9, h(0.65, 0.03))
         # (a keys counter-line from bar 13 was tried: "childish, weak,
