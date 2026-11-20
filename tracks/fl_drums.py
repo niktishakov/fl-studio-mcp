@@ -5,9 +5,14 @@ the API (ui.browser); the focused file sits in the browser's bottom row at
 onto the channel button. Expects Packs > Drums (ModeAudio) > Kicks loaded
 first by hand or the same way. Coordinates: MacBook 1512x982 pt, FL full
 screen, Channel rack visible (ui.showWindow 1, piano roll hidden)."""
-import sys, subprocess, time
+import sys
+import time
+
 sys.path.insert(0, 'tracks')
-import fl, fl_io, fl_browser as b
+import fl
+import fl_browser as b
+import fl_io
+
 c = fl_io.get_connection(); c.ensure_connected()
 FL = 'tell application id "com.image-line.flstudio" to activate'
 # (folder to open, file, target y of the channel button in points)
