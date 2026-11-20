@@ -18,8 +18,10 @@ Run:  uv run python tracks/dark_808.py [part ...] [--force]
 from __future__ import annotations
 
 import hashlib
+import json
 import sys
 import time
+from pathlib import Path
 
 sys.path.insert(0, __file__.rsplit("/", 1)[0])
 from fl_io import (  # noqa: E402
@@ -851,12 +853,15 @@ def apply_settings(c):
     t0 = time.time()
     names = send(c, "plugins.preset", {"channel": BASS, "list": True}, timeout=15)["presets"]
     print("808 preset:", goto_preset(c, BASS, names.index(BASS_PRESET)))  # before BASS_PARAMS
-    # Every PoiZone starts from its "Default" preset, then gets its *_PARAMS:
-    # a preset left over from an audition (arp, gate, transpose -24 on the
-    # verse saw) broke its sound - Nik: "PoiZone sound broke"
-    for ch in (SAW, SAW2, RISER, DOWN):
-        pz = send(c, "plugins.preset", {"channel": ch, "list": True}, timeout=15)["presets"]
-        goto_preset(c, ch, pz.index("Default"))
+    # Every PoiZone starts from the state of a FRESH PoiZone (as FL adds it:
+    # arp up, gate, transpose -24 ... - the track was built on it), then gets
+    # its *_PARAMS. NOT the "Default" preset: that is a different sound and
+    # broke the PoiZones after a preset audition (Nik, 2026-11-20).
+    fresh = json.loads((Path(__file__).resolve().parent / "plugins" / "PoiZone_fresh.json")
+                       .read_text())
+    batch(c, [("plugins.setParamValue", {"plugin_index": ch, "param_index": prm["index"],
+                                         "value": prm["value"]})
+              for ch in (SAW, SAW2, RISER, DOWN) for prm in fresh], timeout=30)
     keys_params = send(c, "plugins.getParams", {"index": KEYS})["params"]
     cmds = [("tempo.setMap", {"points": [], "enabled": False}),
             ("transport.stop", {}),
