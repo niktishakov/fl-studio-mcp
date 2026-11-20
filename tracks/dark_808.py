@@ -851,6 +851,12 @@ def apply_settings(c):
     t0 = time.time()
     names = send(c, "plugins.preset", {"channel": BASS, "list": True}, timeout=15)["presets"]
     print("808 preset:", goto_preset(c, BASS, names.index(BASS_PRESET)))  # before BASS_PARAMS
+    # Every PoiZone starts from its "Default" preset, then gets its *_PARAMS:
+    # a preset left over from an audition (arp, gate, transpose -24 on the
+    # verse saw) broke its sound - Nik: "PoiZone sound broke"
+    for ch in (SAW, SAW2, RISER, DOWN):
+        pz = send(c, "plugins.preset", {"channel": ch, "list": True}, timeout=15)["presets"]
+        goto_preset(c, ch, pz.index("Default"))
     keys_params = send(c, "plugins.getParams", {"index": KEYS})["params"]
     cmds = [("tempo.setMap", {"points": [], "enabled": False}),
             ("transport.stop", {}),
