@@ -221,7 +221,13 @@ DROP_BARS = 20  # one pass of the drop; it plays twice
 # our hook - we loop the track"): the one-note F gives way to the verse's
 # strummed PoiZone chords, the hook grows from a fragment to the full cry.
 VERSE_SAW_RHYTHM = ((0, .95), (0.75, .95), (1.5, 1.7), (3, .7), (3.5, .75))
-SECOND_HALF_HOOK = {24: "frag", 28: "full", 32: "frag", 36: "full"}  # drop bar -> form
+SECOND_HALF_HOOK = {24: "frag", 28: "full", 32: "full"}  # drop bar -> form
+# Nik: "bring the intro piano back, distorted, to end the track in the drop":
+# the hook "cry" on Hook Keys with heavy overdrive (not the prelude theme),
+# the last 4 drop bars, then the final hit closes the loop of the track.
+PIANO_END_BAR = 36
+PIANO_DIST = [(14, 1.0), (2, 1.0), (4, 0.3), (9, 0.6), (11, 0.7), (6, 0.5)]  # overdrive,
+# hardness, less muffle, detune, treble, velocity sens - Nik: "too gentle" -> max
 
 
 def repeat_drop(P):
@@ -243,6 +249,8 @@ def repeat_drop(P):
     for bar, form in SECOND_HALF_HOOK.items():
         for m, b, d, v in (HOOK[:4] if form == "full" else HOOK_FRAG):
             note(P[SAW3], m, "drop", bar, b, d, min(1.0, v * 1.15))
+    # (a distorted piano ending was tried - the prelude theme, then the hook
+    # "cry": Nik: "too gentle", "does not fit", "total crap" - removed)
 
 
 # ---------------------------------------------------------------- parts
@@ -786,6 +794,12 @@ BASS_PRESET = "808 Behemoth"
 VOLUMES = {KICK: 0.72, CLAP: 0.55, HAT: 0.36, SNARE: 0.45, BASS: 0.72, KEYS: 0.62, SAW: 0.45,
            PIANO: 0.8, SAW2: 0.45, FLEX: 0.55, RISER: 0.6, DOWN: 0.55,
            SUB: 1.0}  # PIANO = Hook Keys; SUB 1.0: +4.5 dB at 30-70 Hz in the drop
+# Verse PoiZone clone in the drop's 2nd half: the fresh PoiZone's arpeggiator
+# (UP) and gate run at the project tempo (85) - fine in the verse, off-beat
+# against the drop's baked 140 (Nik: "not in time, crooked together"): off.
+SAW3_EXTRA = [(69, 0.0), (47, 0.0)]  # arpeggiator off, gate mix 0
+# Nik: "boring, not angry enough" with the verse sound -> the drop PoiZone's
+# angry recipe (SAW2_PARAMS) on the verse chords
 # Mix (review 2026-11-20: "bad balance, drums vs melody and between drums").
 # Channel volume in dB (0 = channel maximum), set after VOLUMES. Measured with
 # fl stems 39-41 (drop): the PoiZone lead was 21 dB under the 808, kick 6-8 dB
@@ -794,7 +808,7 @@ VOLUMES = {KICK: 0.72, CLAP: 0.55, HAT: 0.36, SNARE: 0.45, BASS: 0.72, KEYS: 0.6
 MIX_DB = {SAW2: -2.2, KICK: -9.2, CLAP: -10.5, HAT: -7.2, SUB: -4.0,
           SAW: -5.2,   # verse (fl stems 21-23): the PoiZone melody was 14 dB under the kick
           PIANO: -4.0,
-          SAW3: 0.0}  # drop 2nd half: verse PoiZone at the 1st half's PoiZone level
+          SAW3: -5.5}  # drop 2nd half: angry PoiZone at the 1st half's PoiZone level
 MASTER_VOL = 0.61  # ~-5.6 dB (was 0.66 = -4.1): headroom, the louder mix peaked at +0.3 dB
 # PoiZone Drop (Insert 9) had as much 70-150 Hz as the 808: low shelf down
 SAW2_EQ = [{"band": 0, "freq_hz": 160, "gain_db": -9}]
@@ -915,6 +929,8 @@ def apply_settings(c):
     cmds += [("plugins.setParamValue",
               {"plugin_index": PIANO, "param_index": prm["index"], "value": prm["value"]})
              for prm in keys_params]
+    cmds += [("plugins.setParamValue", {"plugin_index": PIANO, "param_index": pi, "value": v})
+             for pi, v in PIANO_DIST]  # Hook Keys: the distorted piano of the ending
     cmds += [("channels.routeToMixer", {"channel_index": KEYS, "mixer_track": 6}),
              ("mixer.setTrackName", {"track": 6, "name": "Keys"}),
              ("channels.mute", {"index": SUB, "muted": False}),
@@ -936,7 +952,7 @@ def apply_settings(c):
     cmds += [("mixer.setEq", {"track": 9, **eq}) for eq in SAW2_EQ]
     cmds += [("mixer.setEq", {"track": 7, **eq}) for eq in SAW_EQ]
     cmds += [("plugins.setParamValue", {"plugin_index": SAW3, "param_index": pi, "value": v})
-             for pi, v in SAW_PARAMS]  # the verse PoiZone's sound
+             for pi, v in SAW2_PARAMS + SAW3_EXTRA]  # the drop's angry sound
     cmds += [("channels.setName", {"index": SAW3, "name": "PoiZone Verse 2"}),
              ("channels.mute", {"index": SAW3, "muted": False}),
              ("channels.routeToMixer", {"channel_index": SAW3, "mixer_track": 14}),

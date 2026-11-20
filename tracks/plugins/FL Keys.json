@@ -1,0 +1,92 @@
+[
+ {
+  "index": 0,
+  "name": "Decay",
+  "value": 0.0,
+  "value_string": "No decay (sustain)"
+ },
+ {
+  "index": 1,
+  "name": "Release",
+  "value": 0.7,
+  "value_string": "40%"
+ },
+ {
+  "index": 2,
+  "name": "Hardness",
+  "value": 0.62,
+  "value_string": "24%"
+ },
+ {
+  "index": 3,
+  "name": "Velocity to Hardness",
+  "value": 0.0,
+  "value_string": "-100%"
+ },
+ {
+  "index": 4,
+  "name": "Muffle",
+  "value": 0.68,
+  "value_string": "32%"
+ },
+ {
+  "index": 5,
+  "name": "Velocity to Muffle",
+  "value": 0.35,
+  "value_string": "70%"
+ },
+ {
+  "index": 6,
+  "name": "Velocity Sensitivity",
+  "value": 0.25,
+  "value_string": "-50%"
+ },
+ {
+  "index": 7,
+  "name": "Stereo",
+  "value": 0.4,
+  "value_string": "80%"
+ },
+ {
+  "index": 8,
+  "name": "Tune",
+  "value": 0.5,
+  "value_string": "0 cents"
+ },
+ {
+  "index": 9,
+  "name": "Detune",
+  "value": 0.33,
+  "value_string": "5.4"
+ },
+ {
+  "index": 10,
+  "name": "Stretch",
+  "value": 0.5,
+  "value_string": "0.0 cents"
+ },
+ {
+  "index": 11,
+  "name": "Treble",
+  "value": 0.5,
+  "value_string": "0%"
+ },
+ {
+  "index": 12,
+  "name": "Pan/Tremolo",
+  "value": 0.5,
+  "value_string": "Off"
+ },
+ {
+  "index": 13,
+  "name": "LFO Rate",
+  "value": 0.4499969482421875,
+  "value_string": "0.63 Hz"
+ },
+ {
+  "index": 14,
+  "name": "Overdrive",
+  "value": 0.12,
+  "value_string": "12.0%"
+ }
+]
