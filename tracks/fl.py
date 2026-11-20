@@ -410,7 +410,8 @@ def drag(x0: int, y0: int, x1: int, y1: int, steps: int = 20) -> None:
     post(Quartz.kCGEventLeftMouseDown, x0, y0)
     time.sleep(0.15)
     for i in range(1, steps + 1):
-        post(Quartz.kCGEventLeftMouseDragged, x0 + (x1 - x0) * i / steps, y0 + (y1 - y0) * i / steps)
+        k = i / steps
+        post(Quartz.kCGEventLeftMouseDragged, x0 + (x1 - x0) * k, y0 + (y1 - y0) * k)
         time.sleep(0.02)
     time.sleep(0.15)
     post(Quartz.kCGEventLeftMouseUp, x1, y1)
