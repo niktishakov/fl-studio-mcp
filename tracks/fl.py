@@ -13,6 +13,7 @@
     fl param saw2 "Cutoff" 0.6       set one parameter by name or index
     fl save                          save the .flp (closes the trial "Buy" window)
     fl gui                           how often FL's UI was touched today
+    fl rebuild                       after an FL restart: new project + instruments
 
 Options: --track dark_808 (default). Operations: see fl_edit.py.
 Run from the repo: uv run python tracks/fl.py ...
@@ -337,6 +338,56 @@ def close_buy() -> bool:
     return bool(close_dialogs(("Buy FL Studio",)))
 
 
+def menu(*path: str) -> str:
+    """Click a native FL menu item: menu("File", "New from template", "Minimal", "Basic")."""
+    ref = f'menu "{path[0]}" of menu bar item "{path[0]}" of menu bar 1'
+    for item in path[1:-1]:
+        ref = f'menu 1 of menu item "{item}" of {ref}'
+    return osa(f'tell application "System Events" to tell process "OsxFL" to '
+               f'click menu item "{path[-1]}" of {ref}')
+
+
+# Channels 5-12 of dark_808, added in this order after the template's 0-4
+# (Kick, Clap, HiHat, Snare, 808 Astronomic). 7 is a muted placeholder.
+REBUILD_ADD = ["FL Keys", "PoiZone", "3x Osc", "FL Keys", "PoiZone", "FLEX",
+               "PoiZone", "PoiZone"]
+
+
+def cmd_rebuild(track, args):
+    """The trial does not open saved projects (nor copies of them as
+    templates): new project from the stock template with the 808 kit, add the
+    instruments through FL's native Add menu, then the track script fills it.
+    Native menu clicks work while FL is in the background - FL is never
+    brought forward (Nik works in other apps meanwhile). Resumes if stopped
+    halfway; --new starts from the template again."""
+    from fl_studio_mcp.utils.fl_trigger import log_gui
+    c = conn()
+
+    def count():
+        return len(fl_io.send(c, "channels.getAll")["channels"])
+
+    n = count()
+    if flag(args, "--new") or not 5 <= n <= 5 + len(REBUILD_ADD):
+        menu("File", "New from template", "Minimal", "Basic with limiter")
+        log_gui("menu-bg")
+        time.sleep(4)
+        n = count()
+        if n != 5:
+            sys.exit(f"template has {n} channels, expected 5 (808 kit)")
+    for inst in REBUILD_ADD[n - 5:]:
+        menu("Add", inst)
+        log_gui("menu-bg")
+        time.sleep(2)
+        menu("View", "Close all plugin windows")
+        time.sleep(0.4)
+    chs = fl_io.send(c, "channels.getAll")["channels"]
+    for ch in chs:
+        print(f"  {ch['index']:2} {ch['name']}")
+    if len(chs) != 5 + len(REBUILD_ADD):
+        sys.exit(f"{len(chs)} channels, expected {5 + len(REBUILD_ADD)}")
+    print("next: fl write --settings --force --verify")
+
+
 def newest_flp() -> Path | None:
     fs = sorted(PROJECTS.glob("*/*.flp"), key=lambda p: p.stat().st_mtime)
     return fs[-1] if fs else None
@@ -391,7 +442,7 @@ def cmd_gui(track, args):
 
 CMDS = {"check": cmd_check, "map": cmd_map, "notes": cmd_notes, "edit": cmd_edit,
         "write": cmd_write, "play": cmd_play, "ab": cmd_ab, "params": cmd_params,
-        "param": cmd_param, "save": cmd_save, "state": cmd_state, "gui": cmd_gui}
+        "param": cmd_param, "save": cmd_save, "rebuild": cmd_rebuild, "state": cmd_state, "gui": cmd_gui}
 
 
 def main():

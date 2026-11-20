@@ -78,14 +78,21 @@ def run_piano_roll(requests):
         if r[0] is not None or r[1] is not None:
             BG_OK = True
             return r
+        if MODE == "bgonly":  # never bring FL forward: fail instead
+            return None, None
         BG_OK = False  # FL ignores background keys: use the focus trigger from now on
         print("  background trigger did not work, using the focus trigger")
+    if MODE == "bgonly":
+        return None, None
     trigger_fl_studio(delay=0.2)
     return wait(80)  # up to 8 s: 400+ notes take longer than 5 s
 
 
 # None = not tried yet in this run; True/False = background trigger works or not
-BG_OK = None if os.environ.get("FL_TRIGGER", "bg") == "bg" else False
+# FL_TRIGGER: bg (default: background key, focus fallback), bgonly (never
+# bring FL forward), focus (always the old focus trigger)
+MODE = os.environ.get("FL_TRIGGER", "bg")
+BG_OK = None if MODE in ("bg", "bgonly") else False
 
 
 def write_notes(c, ch, notes, attempts=4):
