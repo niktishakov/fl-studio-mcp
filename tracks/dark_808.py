@@ -794,7 +794,7 @@ VOLUMES = {KICK: 0.72, CLAP: 0.55, HAT: 0.36, SNARE: 0.45, BASS: 0.72, KEYS: 0.6
 MIX_DB = {SAW2: -2.2, KICK: -9.2, CLAP: -10.5, HAT: -7.2, SUB: -4.0,
           SAW: -5.2,   # verse (fl stems 21-23): the PoiZone melody was 14 dB under the kick
           PIANO: -4.0,
-          SAW3: 0.0}  # drop 2nd half: verse PoiZone up to the 1st half's PoiZone level  # drop counter-line: -27 dB, a little over the PoiZone (-31)
+          SAW3: 0.0}  # drop 2nd half: verse PoiZone at the 1st half's PoiZone level
 MASTER_VOL = 0.61  # ~-5.6 dB (was 0.66 = -4.1): headroom, the louder mix peaked at +0.3 dB
 # PoiZone Drop (Insert 9) had as much 70-150 Hz as the 808: low shelf down
 SAW2_EQ = [{"band": 0, "freq_hz": 160, "gain_db": -9}]
