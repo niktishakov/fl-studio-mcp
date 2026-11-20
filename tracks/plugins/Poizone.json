@@ -1,0 +1,1220 @@
+[
+ {
+  "index": 0,
+  "name": "Osc A shape",
+  "value": 0.0,
+  "value_string": "SAW"
+ },
+ {
+  "index": 1,
+  "name": "Osc A PW",
+  "value": 1.0,
+  "value_string": "100%"
+ },
+ {
+  "index": 2,
+  "name": "Osc A sync",
+  "value": 0.0,
+  "value_string": "Off"
+ },
+ {
+  "index": 3,
+  "name": "Osc A ring",
+  "value": 0.0,
+  "value_string": "Off"
+ },
+ {
+  "index": 4,
+  "name": "Osc B shape",
+  "value": 0.0,
+  "value_string": "SAW"
+ },
+ {
+  "index": 5,
+  "name": "Osc B PW",
+  "value": 1.0,
+  "value_string": "100%"
+ },
+ {
+  "index": 6,
+  "name": "Osc B pitch",
+  "value": 0.5,
+  "value_string": "0"
+ },
+ {
+  "index": 7,
+  "name": "Osc B detune",
+  "value": 0.19921875,
+  "value_string": "9"
+ },
+ {
+  "index": 8,
+  "name": "Osc balance",
+  "value": 0.58203125,
+  "value_string": "58%"
+ },
+ {
+  "index": 9,
+  "name": "Noise balance",
+  "value": 0.0390625,
+  "value_string": "4%"
+ },
+ {
+  "index": 10,
+  "name": "EG amount",
+  "value": 0.69921875,
+  "value_string": "40%"
+ },
+ {
+  "index": 11,
+  "name": "EG attack",
+  "value": 0.47265625,
+  "value_string": "2500ms"
+ },
+ {
+  "index": 12,
+  "name": "EG decay",
+  "value": 0.296875,
+  "value_string": "393ms"
+ },
+ {
+  "index": 13,
+  "name": "EG sustain",
+  "value": 0.0,
+  "value_string": "0%"
+ },
+ {
+  "index": 14,
+  "name": "EG release",
+  "value": 1.0,
+  "value_string": "50000ms"
+ },
+ {
+  "index": 15,
+  "name": "Gain",
+  "value": 0.796875,
+  "value_string": "3.91dB"
+ },
+ {
+  "index": 16,
+  "name": "Fine tune",
+  "value": 0.5,
+  "value_string": "0"
+ },
+ {
+  "index": 17,
+  "name": "Transpose",
+  "value": 0.0,
+  "value_string": "-24"
+ },
+ {
+  "index": 18,
+  "name": "Filter cutoff",
+  "value": 0.65625,
+  "value_string": "66%"
+ },
+ {
+  "index": 19,
+  "name": "Filter resolution",
+  "value": 0.5,
+  "value_string": "50%"
+ },
+ {
+  "index": 20,
+  "name": "Filter keytrack",
+  "value": 0.0,
+  "value_string": "0%"
+ },
+ {
+  "index": 21,
+  "name": "Filter veltrk",
+  "value": 0.0,
+  "value_string": "0%"
+ },
+ {
+  "index": 22,
+  "name": "Amplifier attack",
+  "value": 0.0,
+  "value_string": "1ms"
+ },
+ {
+  "index": 23,
+  "name": "Amplifier decay",
+  "value": 1.0,
+  "value_string": "20000ms"
+ },
+ {
+  "index": 24,
+  "name": "Amplifier sustain",
+  "value": 0.8671875,
+  "value_string": "87%"
+ },
+ {
+  "index": 25,
+  "name": "Amplifier release",
+  "value": 0.19921875,
+  "value_string": "31ms"
+ },
+ {
+  "index": 26,
+  "name": "LFO amount",
+  "value": 0.7578125,
+  "value_string": "52%"
+ },
+ {
+  "index": 27,
+  "name": "LFO retrig",
+  "value": 0.0,
+  "value_string": "Off"
+ },
+ {
+  "index": 28,
+  "name": "LFO rate",
+  "value": 0.375,
+  "value_string": "0.22Hz"
+ },
+ {
+  "index": 29,
+  "name": "Unison detune",
+  "value": 0.6796875,
+  "value_string": "68%"
+ },
+ {
+  "index": 30,
+  "name": "Unison pan",
+  "value": 0.44921875,
+  "value_string": "45%"
+ },
+ {
+  "index": 31,
+  "name": "Delay on",
+  "value": 0.0,
+  "value_string": "Off"
+ },
+ {
+  "index": 32,
+  "name": "Delay time left",
+  "value": 0.4609375,
+  "value_string": "4/4"
+ },
+ {
+  "index": 33,
+  "name": "Delay time right",
+  "value": 0.0,
+  "value_string": "1/4"
+ },
+ {
+  "index": 34,
+  "name": "Delay feedback",
+  "value": 0.5,
+  "value_string": "50%"
+ },
+ {
+  "index": 35,
+  "name": "Delay mod. depth",
+  "value": 0.296875,
+  "value_string": "30%"
+ },
+ {
+  "index": 36,
+  "name": "Delay lo-cut",
+  "value": 0.0,
+  "value_string": "0%"
+ },
+ {
+  "index": 37,
+  "name": "Delay hi-cut",
+  "value": 1.0,
+  "value_string": "100%"
+ },
+ {
+  "index": 38,
+  "name": "Delay wet",
+  "value": 0.5625,
+  "value_string": "56%"
+ },
+ {
+  "index": 39,
+  "name": "Chorus on",
+  "value": 0.0,
+  "value_string": "Off"
+ },
+ {
+  "index": 40,
+  "name": "Chorus rate",
+  "value": 0.5,
+  "value_string": "2.60Hz"
+ },
+ {
+  "index": 41,
+  "name": "Chorus depth",
+  "value": 0.5,
+  "value_string": "50%"
+ },
+ {
+  "index": 42,
+  "name": "Chorus wet",
+  "value": 0.078125,
+  "value_string": "8%"
+ },
+ {
+  "index": 43,
+  "name": "MW amount",
+  "value": 0.1875,
+  "value_string": "-62%"
+ },
+ {
+  "index": 44,
+  "name": "Monophonic",
+  "value": 0.0,
+  "value_string": "Off"
+ },
+ {
+  "index": 45,
+  "name": "Octaver",
+  "value": 0.0,
+  "value_string": "Off"
+ },
+ {
+  "index": 46,
+  "name": "Glide time",
+  "value": 0.0,
+  "value_string": "0%"
+ },
+ {
+  "index": 47,
+  "name": "Gate mix",
+  "value": 0.3515625,
+  "value_string": "35%"
+ },
+ {
+  "index": 48,
+  "name": "Gate smooth",
+  "value": 0.36328125,
+  "value_string": "36%"
+ },
+ {
+  "index": 49,
+  "name": "Gate step 1",
+  "value": 0.0,
+  "value_string": "Off"
+ },
+ {
+  "index": 50,
+  "name": "Gate step 2",
+  "value": 0.0,
+  "value_string": "Off"
+ },
+ {
+  "index": 51,
+  "name": "Gate step 3",
+  "value": 0.00390625,
+  "value_string": "On"
+ },
+ {
+  "index": 52,
+  "name": "Gate step 4",
+  "value": 0.00390625,
+  "value_string": "On"
+ },
+ {
+  "index": 53,
+  "name": "Gate step 5",
+  "value": 0.0,
+  "value_string": "Off"
+ },
+ {
+  "index": 54,
+  "name": "Gate step 6",
+  "value": 0.0,
+  "value_string": "Off"
+ },
+ {
+  "index": 55,
+  "name": "Gate step 7",
+  "value": 0.0,
+  "value_string": "Off"
+ },
+ {
+  "index": 56,
+  "name": "Gate step 8",
+  "value": 0.0,
+  "value_string": "Off"
+ },
+ {
+  "index": 57,
+  "name": "Gate step 9",
+  "value": 0.0,
+  "value_string": "Off"
+ },
+ {
+  "index": 58,
+  "name": "Gate step 10",
+  "value": 0.00390625,
+  "value_string": "On"
+ },
+ {
+  "index": 59,
+  "name": "Gate step 11",
+  "value": 0.00390625,
+  "value_string": "On"
+ },
+ {
+  "index": 60,
+  "name": "Gate step 12",
+  "value": 0.0,
+  "value_string": "Off"
+ },
+ {
+  "index": 61,
+  "name": "Gate step 13",
+  "value": 0.0,
+  "value_string": "Off"
+ },
+ {
+  "index": 62,
+  "name": "Gate step 14",
+  "value": 0.0,
+  "value_string": "Off"
+ },
+ {
+  "index": 63,
+  "name": "Gate step 15",
+  "value": 0.0,
+  "value_string": "Off"
+ },
+ {
+  "index": 64,
+  "name": "Gate step 16",
+  "value": 0.0,
+  "value_string": "Off"
+ },
+ {
+  "index": 65,
+  "name": "Envelope destination",
+  "value": 0.0,
+  "value_string": "CUTOFF"
+ },
+ {
+  "index": 66,
+  "name": "Filter mode",
+  "value": 0.0,
+  "value_string": "LP"
+ },
+ {
+  "index": 67,
+  "name": "LFO destination",
+  "value": 0.0,
+  "value_string": "CUTOFF"
+ },
+ {
+  "index": 68,
+  "name": "LFO shape",
+  "value": 0.5,
+  "value_string": "TRIANGLE"
+ },
+ {
+  "index": 69,
+  "name": "Arpegiator mode",
+  "value": 0.25,
+  "value_string": "UP"
+ },
+ {
+  "index": 70,
+  "name": "Arpegiator range",
+  "value": 0.6640625,
+  "value_string": "2"
+ },
+ {
+  "index": 71,
+  "name": "ModWheel destination",
+  "value": 0.0,
+  "value_string": "CUTOFF"
+ },
+ {
+  "index": 72,
+  "name": "Glide held",
+  "value": 0.00390625,
+  "value_string": "On"
+ },
+ {
+  "index": 73,
+  "name": "Glide static",
+  "value": 0.0,
+  "value_string": "Off"
+ },
+ {
+  "index": 74,
+  "name": "MIDI CC 0",
+  "value": 0.0,
+  "value_string": ""
+ },
+ {
+  "index": 75,
+  "name": "MIDI CC 1",
+  "value": 0.0,
+  "value_string": ""
+ },
+ {
+  "index": 76,
+  "name": "MIDI CC 2",
+  "value": 0.0,
+  "value_string": ""
+ },
+ {
+  "index": 77,
+  "name": "MIDI CC 3",
+  "value": 0.0,
+  "value_string": ""
+ },
+ {
+  "index": 78,
+  "name": "MIDI CC 4",
+  "value": 0.0,
+  "value_string": ""
+ },
+ {
+  "index": 79,
+  "name": "MIDI CC 5",
+  "value": 0.0,
+  "value_string": ""
+ },
+ {
+  "index": 80,
+  "name": "MIDI CC 6",
+  "value": 0.0,
+  "value_string": ""
+ },
+ {
+  "index": 81,
+  "name": "MIDI CC 7",
+  "value": 0.0,
+  "value_string": ""
+ },
+ {
+  "index": 82,
+  "name": "MIDI CC 8",
+  "value": 0.0,
+  "value_string": ""
+ },
+ {
+  "index": 83,
+  "name": "MIDI CC 9",
+  "value": 0.0,
+  "value_string": ""
+ },
+ {
+  "index": 84,
+  "name": "MIDI CC 10",
+  "value": 0.0,
+  "value_string": ""
+ },
+ {
+  "index": 85,
+  "name": "MIDI CC 11",
+  "value": 0.0,
+  "value_string": ""
+ },
+ {
+  "index": 86,
+  "name": "MIDI CC 12",
+  "value": 0.0,
+  "value_string": ""
+ },
+ {
+  "index": 87,
+  "name": "MIDI CC 13",
+  "value": 0.0,
+  "value_string": ""
+ },
+ {
+  "index": 88,
+  "name": "MIDI CC 14",
+  "value": 0.0,
+  "value_string": ""
+ },
+ {
+  "index": 89,
+  "name": "MIDI CC 15",
+  "value": 0.0,
+  "value_string": ""
+ },
+ {
+  "index": 90,
+  "name": "MIDI CC 16",
+  "value": 0.0,
+  "value_string": ""
+ },
+ {
+  "index": 91,
+  "name": "MIDI CC 17",
+  "value": 0.0,
+  "value_string": ""
+ },
+ {
+  "index": 92,
+  "name": "MIDI CC 18",
+  "value": 0.0,
+  "value_string": ""
+ },
+ {
+  "index": 93,
+  "name": "MIDI CC 19",
+  "value": 0.0,
+  "value_string": ""
+ },
+ {
+  "index": 94,
+  "name": "MIDI CC 20",
+  "value": 0.0,
+  "value_string": ""
+ },
+ {
+  "index": 95,
+  "name": "MIDI CC 21",
+  "value": 0.0,
+  "value_string": ""
+ },
+ {
+  "index": 96,
+  "name": "MIDI CC 22",
+  "value": 0.0,
+  "value_string": ""
+ },
+ {
+  "index": 97,
+  "name": "MIDI CC 23",
+  "value": 0.0,
+  "value_string": ""
+ },
+ {
+  "index": 98,
+  "name": "MIDI CC 24",
+  "value": 0.0,
+  "value_string": ""
+ },
+ {
+  "index": 99,
+  "name": "MIDI CC 25",
+  "value": 0.0,
+  "value_string": ""
+ },
+ {
+  "index": 100,
+  "name": "MIDI CC 26",
+  "value": 0.0,
+  "value_string": ""
+ },
+ {
+  "index": 101,
+  "name": "MIDI CC 27",
+  "value": 0.0,
+  "value_string": ""
+ },
+ {
+  "index": 102,
+  "name": "MIDI CC 28",
+  "value": 0.0,
+  "value_string": ""
+ },
+ {
+  "index": 103,
+  "name": "MIDI CC 29",
+  "value": 0.0,
+  "value_string": ""
+ },
+ {
+  "index": 104,
+  "name": "MIDI CC 30",
+  "value": 0.0,
+  "value_string": ""
+ },
+ {
+  "index": 105,
+  "name": "MIDI CC 31",
+  "value": 0.0,
+  "value_string": ""
+ },
+ {
+  "index": 106,
+  "name": "MIDI CC 32",
+  "value": 0.0,
+  "value_string": ""
+ },
+ {
+  "index": 107,
+  "name": "MIDI CC 33",
+  "value": 0.0,
+  "value_string": ""
+ },
+ {
+  "index": 108,
+  "name": "MIDI CC 34",
+  "value": 0.0,
+  "value_string": ""
+ },
+ {
+  "index": 109,
+  "name": "MIDI CC 35",
+  "value": 0.0,
+  "value_string": ""
+ },
+ {
+  "index": 110,
+  "name": "MIDI CC 36",
+  "value": 0.0,
+  "value_string": ""
+ },
+ {
+  "index": 111,
+  "name": "MIDI CC 37",
+  "value": 0.0,
+  "value_string": ""
+ },
+ {
+  "index": 112,
+  "name": "MIDI CC 38",
+  "value": 0.0,
+  "value_string": ""
+ },
+ {
+  "index": 113,
+  "name": "MIDI CC 39",
+  "value": 0.0,
+  "value_string": ""
+ },
+ {
+  "index": 114,
+  "name": "MIDI CC 40",
+  "value": 0.0,
+  "value_string": ""
+ },
+ {
+  "index": 115,
+  "name": "MIDI CC 41",
+  "value": 0.0,
+  "value_string": ""
+ },
+ {
+  "index": 116,
+  "name": "MIDI CC 42",
+  "value": 0.0,
+  "value_string": ""
+ },
+ {
+  "index": 117,
+  "name": "MIDI CC 43",
+  "value": 0.0,
+  "value_string": ""
+ },
+ {
+  "index": 118,
+  "name": "MIDI CC 44",
+  "value": 0.0,
+  "value_string": ""
+ },
+ {
+  "index": 119,
+  "name": "MIDI CC 45",
+  "value": 0.0,
+  "value_string": ""
+ },
+ {
+  "index": 120,
+  "name": "MIDI CC 46",
+  "value": 0.0,
+  "value_string": ""
+ },
+ {
+  "index": 121,
+  "name": "MIDI CC 47",
+  "value": 0.0,
+  "value_string": ""
+ },
+ {
+  "index": 122,
+  "name": "MIDI CC 48",
+  "value": 0.0,
+  "value_string": ""
+ },
+ {
+  "index": 123,
+  "name": "MIDI CC 49",
+  "value": 0.0,
+  "value_string": ""
+ },
+ {
+  "index": 124,
+  "name": "MIDI CC 50",
+  "value": 0.0,
+  "value_string": ""
+ },
+ {
+  "index": 125,
+  "name": "MIDI CC 51",
+  "value": 0.0,
+  "value_string": ""
+ },
+ {
+  "index": 126,
+  "name": "MIDI CC 52",
+  "value": 0.0,
+  "value_string": ""
+ },
+ {
+  "index": 127,
+  "name": "MIDI CC 53",
+  "value": 0.0,
+  "value_string": ""
+ },
+ {
+  "index": 128,
+  "name": "MIDI CC 54",
+  "value": 0.0,
+  "value_string": ""
+ },
+ {
+  "index": 129,
+  "name": "MIDI CC 55",
+  "value": 0.0,
+  "value_string": ""
+ },
+ {
+  "index": 130,
+  "name": "MIDI CC 56",
+  "value": 0.0,
+  "value_string": ""
+ },
+ {
+  "index": 131,
+  "name": "MIDI CC 57",
+  "value": 0.0,
+  "value_string": ""
+ },
+ {
+  "index": 132,
+  "name": "MIDI CC 58",
+  "value": 0.0,
+  "value_string": ""
+ },
+ {
+  "index": 133,
+  "name": "MIDI CC 59",
+  "value": 0.0,
+  "value_string": ""
+ },
+ {
+  "index": 134,
+  "name": "MIDI CC 60",
+  "value": 0.0,
+  "value_string": ""
+ },
+ {
+  "index": 135,
+  "name": "MIDI CC 61",
+  "value": 0.0,
+  "value_string": ""
+ },
+ {
+  "index": 136,
+  "name": "MIDI CC 62",
+  "value": 0.0,
+  "value_string": ""
+ },
+ {
+  "index": 137,
+  "name": "MIDI CC 63",
+  "value": 0.0,
+  "value_string": ""
+ },
+ {
+  "index": 138,
+  "name": "MIDI CC 64",
+  "value": 0.0,
+  "value_string": ""
+ },
+ {
+  "index": 139,
+  "name": "MIDI CC 65",
+  "value": 0.0,
+  "value_string": ""
+ },
+ {
+  "index": 140,
+  "name": "MIDI CC 66",
+  "value": 0.0,
+  "value_string": ""
+ },
+ {
+  "index": 141,
+  "name": "MIDI CC 67",
+  "value": 0.0,
+  "value_string": ""
+ },
+ {
+  "index": 142,
+  "name": "MIDI CC 68",
+  "value": 0.0,
+  "value_string": ""
+ },
+ {
+  "index": 143,
+  "name": "MIDI CC 69",
+  "value": 0.0,
+  "value_string": ""
+ },
+ {
+  "index": 144,
+  "name": "MIDI CC 70",
+  "value": 0.0,
+  "value_string": ""
+ },
+ {
+  "index": 145,
+  "name": "MIDI CC 71",
+  "value": 0.0,
+  "value_string": ""
+ },
+ {
+  "index": 146,
+  "name": "MIDI CC 72",
+  "value": 0.0,
+  "value_string": ""
+ },
+ {
+  "index": 147,
+  "name": "MIDI CC 73",
+  "value": 0.0,
+  "value_string": ""
+ },
+ {
+  "index": 148,
+  "name": "MIDI CC 74",
+  "value": 0.0,
+  "value_string": ""
+ },
+ {
+  "index": 149,
+  "name": "MIDI CC 75",
+  "value": 0.0,
+  "value_string": ""
+ },
+ {
+  "index": 150,
+  "name": "MIDI CC 76",
+  "value": 0.0,
+  "value_string": ""
+ },
+ {
+  "index": 151,
+  "name": "MIDI CC 77",
+  "value": 0.0,
+  "value_string": ""
+ },
+ {
+  "index": 152,
+  "name": "MIDI CC 78",
+  "value": 0.0,
+  "value_string": ""
+ },
+ {
+  "index": 153,
+  "name": "MIDI CC 79",
+  "value": 0.0,
+  "value_string": ""
+ },
+ {
+  "index": 154,
+  "name": "MIDI CC 80",
+  "value": 0.0,
+  "value_string": ""
+ },
+ {
+  "index": 155,
+  "name": "MIDI CC 81",
+  "value": 0.0,
+  "value_string": ""
+ },
+ {
+  "index": 156,
+  "name": "MIDI CC 82",
+  "value": 0.0,
+  "value_string": ""
+ },
+ {
+  "index": 157,
+  "name": "MIDI CC 83",
+  "value": 0.0,
+  "value_string": ""
+ },
+ {
+  "index": 158,
+  "name": "MIDI CC 84",
+  "value": 0.0,
+  "value_string": ""
+ },
+ {
+  "index": 159,
+  "name": "MIDI CC 85",
+  "value": 0.0,
+  "value_string": ""
+ },
+ {
+  "index": 160,
+  "name": "MIDI CC 86",
+  "value": 0.0,
+  "value_string": ""
+ },
+ {
+  "index": 161,
+  "name": "MIDI CC 87",
+  "value": 0.0,
+  "value_string": ""
+ },
+ {
+  "index": 162,
+  "name": "MIDI CC 88",
+  "value": 0.0,
+  "value_string": ""
+ },
+ {
+  "index": 163,
+  "name": "MIDI CC 89",
+  "value": 0.0,
+  "value_string": ""
+ },
+ {
+  "index": 164,
+  "name": "MIDI CC 90",
+  "value": 0.0,
+  "value_string": ""
+ },
+ {
+  "index": 165,
+  "name": "MIDI CC 91",
+  "value": 0.0,
+  "value_string": ""
+ },
+ {
+  "index": 166,
+  "name": "MIDI CC 92",
+  "value": 0.0,
+  "value_string": ""
+ },
+ {
+  "index": 167,
+  "name": "MIDI CC 93",
+  "value": 0.0,
+  "value_string": ""
+ },
+ {
+  "index": 168,
+  "name": "MIDI CC 94",
+  "value": 0.0,
+  "value_string": ""
+ },
+ {
+  "index": 169,
+  "name": "MIDI CC 95",
+  "value": 0.0,
+  "value_string": ""
+ },
+ {
+  "index": 170,
+  "name": "MIDI CC 96",
+  "value": 0.0,
+  "value_string": ""
+ },
+ {
+  "index": 171,
+  "name": "MIDI CC 97",
+  "value": 0.0,
+  "value_string": ""
+ },
+ {
+  "index": 172,
+  "name": "MIDI CC 98",
+  "value": 0.0,
+  "value_string": ""
+ },
+ {
+  "index": 173,
+  "name": "MIDI CC 99",
+  "value": 0.0,
+  "value_string": ""
+ },
+ {
+  "index": 174,
+  "name": "MIDI CC 100",
+  "value": 0.0,
+  "value_string": ""
+ },
+ {
+  "index": 175,
+  "name": "MIDI CC 101",
+  "value": 0.0,
+  "value_string": ""
+ },
+ {
+  "index": 176,
+  "name": "MIDI CC 102",
+  "value": 0.0,
+  "value_string": ""
+ },
+ {
+  "index": 177,
+  "name": "MIDI CC 103",
+  "value": 0.0,
+  "value_string": ""
+ },
+ {
+  "index": 178,
+  "name": "MIDI CC 104",
+  "value": 0.0,
+  "value_string": ""
+ },
+ {
+  "index": 179,
+  "name": "MIDI CC 105",
+  "value": 0.0,
+  "value_string": ""
+ },
+ {
+  "index": 180,
+  "name": "MIDI CC 106",
+  "value": 0.0,
+  "value_string": ""
+ },
+ {
+  "index": 181,
+  "name": "MIDI CC 107",
+  "value": 0.0,
+  "value_string": ""
+ },
+ {
+  "index": 182,
+  "name": "MIDI CC 108",
+  "value": 0.0,
+  "value_string": ""
+ },
+ {
+  "index": 183,
+  "name": "MIDI CC 109",
+  "value": 0.0,
+  "value_string": ""
+ },
+ {
+  "index": 184,
+  "name": "MIDI CC 110",
+  "value": 0.0,
+  "value_string": ""
+ },
+ {
+  "index": 185,
+  "name": "MIDI CC 111",
+  "value": 0.0,
+  "value_string": ""
+ },
+ {
+  "index": 186,
+  "name": "MIDI CC 112",
+  "value": 0.0,
+  "value_string": ""
+ },
+ {
+  "index": 187,
+  "name": "MIDI CC 113",
+  "value": 0.0,
+  "value_string": ""
+ },
+ {
+  "index": 188,
+  "name": "MIDI CC 114",
+  "value": 0.0,
+  "value_string": ""
+ },
+ {
+  "index": 189,
+  "name": "MIDI CC 115",
+  "value": 0.0,
+  "value_string": ""
+ },
+ {
+  "index": 190,
+  "name": "MIDI CC 116",
+  "value": 0.0,
+  "value_string": ""
+ },
+ {
+  "index": 191,
+  "name": "MIDI CC 117",
+  "value": 0.0,
+  "value_string": ""
+ },
+ {
+  "index": 192,
+  "name": "MIDI CC 118",
+  "value": 0.0,
+  "value_string": ""
+ },
+ {
+  "index": 193,
+  "name": "MIDI CC 119",
+  "value": 0.0,
+  "value_string": ""
+ },
+ {
+  "index": 194,
+  "name": "MIDI CC 120",
+  "value": 0.0,
+  "value_string": ""
+ },
+ {
+  "index": 195,
+  "name": "MIDI CC 121",
+  "value": 0.0,
+  "value_string": ""
+ },
+ {
+  "index": 196,
+  "name": "MIDI CC 122",
+  "value": 0.0,
+  "value_string": ""
+ },
+ {
+  "index": 197,
+  "name": "MIDI CC 123",
+  "value": 0.0,
+  "value_string": ""
+ },
+ {
+  "index": 198,
+  "name": "MIDI CC 124",
+  "value": 0.0,
+  "value_string": ""
+ },
+ {
+  "index": 199,
+  "name": "MIDI CC 125",
+  "value": 0.0,
+  "value_string": ""
+ },
+ {
+  "index": 200,
+  "name": "MIDI CC 126",
+  "value": 0.0,
+  "value_string": ""
+ },
+ {
+  "index": 201,
+  "name": "MIDI CC 127",
+  "value": 0.0,
+  "value_string": ""
+ },
+ {
+  "index": 202,
+  "name": "Channel Aftertouch",
+  "value": 0.0,
+  "value_string": ""
+ }
+]
