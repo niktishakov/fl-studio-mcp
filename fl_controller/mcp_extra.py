@@ -284,6 +284,18 @@ def handle_mixer_get_eq(params):
 def handle_mixer_set_eq(params):
     """band 0/1/2; gain, freq, bw normalized 0..1 (gain 0.5 = 0 dB)."""
     t, b = int(params.get("track", 0)), int(params.get("band", 0))
+    if "freq_hz" in params:  # find the normalized value for a frequency in Hz
+        want, lo, hi = float(params["freq_hz"]), 0.0, 1.0
+        for _ in range(30):
+            mid = (lo + hi) / 2
+            mixer.setEqFrequency(t, b, mid)
+            if mixer.getEqFrequency(t, b, 1) < want:
+                lo = mid
+            else:
+                hi = mid
+        mixer.setEqFrequency(t, b, (lo + hi) / 2)
+    if "gain_db" in params:  # +-18 dB: gain 0.5 = 0 dB, 1.0 = +18 dB
+        params["gain"] = max(0.0, min(1.0, 0.5 + float(params["gain_db"]) / 36))
     if "freq" in params:
         mixer.setEqFrequency(t, b, float(params["freq"]))
     if "bw" in params:
@@ -340,7 +352,42 @@ def handle_transport_get_pos(params):
             "bpm": _tempo_bpm()}
 
 
+def _search(set_fn, get_db, want, lo=0.0, hi=1.0):
+    """Binary search of a normalized control for a level in dB."""
+    for _ in range(30):
+        mid = (lo + hi) / 2
+        set_fn(mid)
+        if get_db() < want:
+            lo = mid
+        else:
+            hi = mid
+    set_fn((lo + hi) / 2)
+    return get_db()
+
+
+def handle_channels_volume_db(params):
+    """Get or set ("db") a channel's volume in dB. 1.0 is the channel maximum."""
+    i = int(params.get("index", 0))
+    if "db" in params:
+        _search(lambda v: channels.setChannelVolume(i, v, midi.PIM_None, True),
+                lambda: channels.getChannelVolume(i, True, True), float(params["db"]))
+    return {"index": i, "db": channels.getChannelVolume(i, True, True),
+            "volume": channels.getChannelVolume(i, False, True)}
+
+
+def handle_mixer_volume_db(params):
+    """Get a mixer track's volume in dB. Setting by dB is refused: the mixer
+    reports the new level only later, a search in one call runs to 0 (silence).
+    Use mixer.setTrackVolume (0.8 = 0 dB, 0.61 ~ -5.6 dB, 1.0 = +5.6 dB)."""
+    t = int(params.get("track", 0))
+    if "db" in params:
+        raise ValueError("mixer.volumeDb cannot set; use mixer.setTrackVolume")
+    return {"track": t, "db": mixer.getTrackVolume(t, 1), "volume": mixer.getTrackVolume(t)}
+
+
 EXTRA_HANDLERS = {
+    "channels.volumeDb": handle_channels_volume_db,
+    "mixer.volumeDb": handle_mixer_volume_db,
     "transport.getPos": handle_transport_get_pos,
     "plugins.preset": handle_plugins_preset,
     "batch": handle_batch,

@@ -9,6 +9,7 @@
     fl play 34.5 6 [--rec]           same, from seconds
     fl ab "del hat bars 39-40" [--bars 37-41] [--keep]   variant A vs B by ear + numbers
     fl edit ls | add "<op>" | rm N | off N | on N         edits on top of the track
+    fl stems 39-41                   each channel alone + mix: level per band (mixing)
     fl tone bass 53 [2]              one live note: fundamental Hz + decay every 0.25 s
     fl params saw2 [filter]          plugin parameters (saved to tracks/plugins/)
     fl param saw2 "Cutoff" 0.6       set one parameter by name or index
@@ -268,6 +269,61 @@ def cmd_tone(track, args):
         print(f"{k}: {v}")
 
 
+BANDS = [("sub", 30, 70), ("bass", 70, 150), ("lowmid", 150, 400), ("mid", 400, 2000),
+         ("pres", 2000, 6000), ("high", 6000, 16000)]
+
+
+def bands_db(wav: Path) -> dict:
+    """rms, peak and level per frequency band (dB) of a recording."""
+    import numpy as np
+    raw = subprocess.run(["ffmpeg", "-loglevel", "error", "-i", str(wav), "-ac", "1",
+                          "-ar", "48000", "-f", "f32le", "-"], capture_output=True).stdout
+    x = np.frombuffer(raw, np.float32)
+    if len(x) < 4800 or np.abs(x).max() < 1e-6:
+        return {}
+    X = np.fft.rfft(x)
+    f = np.fft.rfftfreq(len(x), 1 / 48000)
+    p = np.abs(X) ** 2
+    tot = p.sum()
+    out = {"rms": 20 * np.log10(np.sqrt(np.mean(x ** 2)) + 1e-9),
+           "peak": 20 * np.log10(np.abs(x).max() + 1e-9)}
+    for name, lo, hi in BANDS:  # band level = rms of the signal limited to the band
+        share = p[(f >= lo) & (f < hi)].sum() / tot
+        out[name] = out["rms"] + 10 * np.log10(share + 1e-12)
+    return {k: round(float(v), 1) for k, v in out.items()}
+
+
+def cmd_stems(track, args):
+    """Each channel alone over FL bars A-B (others muted), then the full mix:
+    level per band. Shows who covers whom. Mute states are restored."""
+    import listen
+    bars = args[0] if args else "39-41"
+    t0, t1 = fl_edit.bar_range(bars)
+    P = track.final_parts()
+    rev = {v: k for k, v in track.NAMES.items()}
+    chs = [ch for ch in sorted(P) if any(t0 <= n["time"] < t1 for n in P[ch])]
+    c = conn()
+    allch = fl_io.send(c, "channels.getAll")["channels"]
+    muted0 = {x["index"]: x["is_muted"] for x in allch}
+    start, dur = t0 * 60 / track.BASE_BPM, (t1 - t0) * 60 / track.BASE_BPM
+    rows = {}
+    try:
+        for ch in chs + ["MIX"]:
+            fl_io.batch(c, [("channels.mute", {"index": i, "muted": (
+                muted0[i] if ch == "MIX" else i != ch)}) for i in muted0])
+            listen.play(start, dur, rec=True, quiet=True)
+            rows[rev.get(ch, ch)] = bands_db(listen.REC)
+    finally:
+        fl_io.batch(c, [("channels.mute", {"index": i, "muted": m}) for i, m in muted0.items()])
+    cols = ["rms", "peak"] + [b[0] for b in BANDS]
+    print(f"FL bars {bars}" + "".join(f"{x:>8}" for x in cols))
+    for name, r in rows.items():
+        print(f"{name:<12}" + "".join(f"{r.get(x, '-'):>8}" for x in cols))
+    out = DIR / ".cache" / f"stems_{track.__name__}_{bars}.json"
+    out.write_text(json.dumps(rows, indent=1))
+    print("saved", out.relative_to(DIR))
+
+
 def cmd_params(track, args):
     ch = chan(track, args[0])
     flt = args[1].lower() if len(args) > 1 else ""
@@ -482,6 +538,7 @@ def cmd_gui(track, args):
 CMDS = {"check": cmd_check, "map": cmd_map, "notes": cmd_notes, "edit": cmd_edit,
         "write": cmd_write, "play": cmd_play, "ab": cmd_ab, "params": cmd_params,
         "param": cmd_param, "save": cmd_save, "rebuild": cmd_rebuild, "tone": cmd_tone,
+        "stems": cmd_stems,
         "state": cmd_state, "gui": cmd_gui}
 
 

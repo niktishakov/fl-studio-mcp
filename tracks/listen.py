@@ -70,8 +70,11 @@ def play(start: float, dur: float = 6.0, rec: bool = False, quiet: bool = False)
     if not (p0["playing"] and p1["playing"]) or p0["song_mode"]:
         print("WARNING: FL was not playing the pattern the whole time", p0, p1)
     a, b = p0["ms"] / 1000, p1["ms"] / 1000
-    print(f"FL played {a:.2f} s -> {b:.2f} s")
-    print(f"  start: {where(a)}\n  end:   {where(b)}")
+    if not quiet:
+        print(f"FL played {a:.2f} s -> {b:.2f} s")
+        print(f"  start: {where(a)}\n  end:   {where(b)}")
+    elif b - a < (time_played := dur) - 0.3:
+        print(f"WARNING: FL moved {b - a:.2f} s in {time_played:.2f} s (audio dropouts?)")
     if proc:
         proc.wait()
         if not quiet:

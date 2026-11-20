@@ -630,6 +630,16 @@ BASS_PARAMS = [(3, 0.5), (4, 0.5), (11, 0.25)]
 VOLUMES = {KICK: 0.72, CLAP: 0.55, HAT: 0.36, SNARE: 0.45, BASS: 0.72, KEYS: 0.62, SAW: 0.45,
            PIANO: 0.8, SAW2: 0.45, FLEX: 0.55, RISER: 0.6, DOWN: 0.55,
            SUB: 1.0}  # PIANO = Hook Keys; SUB 1.0: +4.5 dB at 30-70 Hz in the drop
+# Mix (review 2026-11-20: "bad balance, drums vs melody and between drums").
+# Channel volume in dB (0 = channel maximum), set after VOLUMES. Measured with
+# fl stems 39-41 (drop): the PoiZone lead was 21 dB under the 808, kick 6-8 dB
+# under the 808 + sub, sub the loudest of all.
+MIX_DB = {SAW2: -2.2, KICK: -2.7, CLAP: -5.0, HAT: -0.2, SUB: -4.0,
+          SAW: -5.2}  # verse (fl stems 21-23): the PoiZone melody was 14 dB under the kick
+MASTER_VOL = 0.61  # ~-5.6 dB (was 0.66 = -4.1): headroom, the louder mix peaked at +0.3 dB
+# PoiZone Drop (Insert 9) had as much 70-150 Hz as the 808: low shelf down
+SAW2_EQ = [{"band": 0, "freq_hz": 160, "gain_db": -9}]
+SAW_EQ = SAW2_EQ  # Insert 7: same low cut for the first PoiZone
 # Downlifter (PoiZone #4): noise from an open filter that closes (-100% filter
 # envelope, ~3 s) while the volume fades (~2.5 s).
 DOWN_PARAMS = [(9, 1.0), (18, 0.9), (19, 0.3), (10, 0.0), (11, 0.0), (12, 0.5), (13, 0.0),
@@ -752,6 +762,8 @@ def apply_settings(c):
              for prm, v in CLAP_REC]
     cmds += [("mixer.setEq", {"track": 2, **eq}) for eq in CLAP_EQ]
     cmds += [("mixer.setEq", {"track": 3, **eq}) for eq in HAT_EQ]
+    cmds += [("mixer.setEq", {"track": 9, **eq}) for eq in SAW2_EQ]
+    cmds += [("mixer.setEq", {"track": 7, **eq}) for eq in SAW_EQ]
     cmds += [("mixer.setTrackVolume", {"track": 3, "volume": HAT_TRACK_VOL})]
     cmds += [("channels.routeToMixer", {"channel_index": SAW, "mixer_track": 7})]
     cmds += [("plugins.setParamValue", {"plugin_index": SAW2, "param_index": pi, "value": v})
@@ -765,6 +777,8 @@ def apply_settings(c):
              ("channels.mute", {"index": PIANO, "muted": True}),  # "muted"! "mute" toggles
              ("channels.setRec", {"channel": BASS, "param": "PortaTime", "value": PORTA_808})]
     cmds += [("channels.setVolume", {"index": ch, "volume": v}) for ch, v in VOLUMES.items()]
+    cmds += [("channels.volumeDb", {"index": ch, "db": db}) for ch, db in MIX_DB.items()]
+    cmds += [("mixer.setTrackVolume", {"track": 0, "volume": MASTER_VOL})]
     cmds += [("plugins.setParamValue", {"plugin_index": RISER, "param_index": pi, "value": v})
              for pi, v in RISER_PARAMS]
     cmds += [("plugins.setParamValue", {"plugin_index": DOWN, "param_index": pi, "value": v})
