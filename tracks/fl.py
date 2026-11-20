@@ -174,7 +174,8 @@ def measure(wav: Path) -> dict:
     low = spec[f < 150].sum() / spec.sum()
     peak = 20 * np.log10(np.abs(x).max() + 1e-9)
     return {"rms dB": round(float(db(x)), 1), "peak dB": round(float(peak), 1),
-            "centroid Hz": int((spec * f).sum() / spec.sum()), "low <150 Hz %": round(float(100 * low), 1),
+            "centroid Hz": int((spec * f).sum() / spec.sum()),
+            "low <150 Hz %": round(float(100 * low), 1),
             "hits": int((np.diff(env) > 6).sum())}
 
 
@@ -273,24 +274,67 @@ def fl_windows() -> list[str]:
     return [w.strip() for w in out.split(",") if w.strip()]
 
 
-def close_buy() -> bool:
-    """Close the trial 'Buy FL Studio' window and give focus back."""
-    if not any("Buy" in w for w in fl_windows()):
-        return False
+def fl_cg_windows() -> list[tuple[str, dict]]:
+    """FL's windows as macOS sees them (CoreGraphics): FL's own dialogs such as
+    'Welcome... trial mode' are missing from System Events but are here."""
+    import Quartz
+    out = []
+    for w in Quartz.CGWindowListCopyWindowInfo(Quartz.kCGWindowListOptionAll,
+                                               Quartz.kCGNullWindowID):
+        # hidden windows stay in the list (closed Welcome/Buy): onscreen only.
+        # In Stage Manager FL's windows are offscreen until FL is in front.
+        if ("FL Studio" in str(w.get("kCGWindowOwnerName")) and w.get("kCGWindowName")
+                and w.get("kCGWindowIsOnscreen")):
+            out.append((str(w["kCGWindowName"]), dict(w["kCGWindowBounds"])))
+    return out
+
+
+def click(x: int, y: int) -> None:
+    """A real mouse click (CGEvent) at screen point x, y; the pointer goes back."""
+    import Quartz
+    old = Quartz.CGEventGetLocation(Quartz.CGEventCreate(None))
+    for t in (Quartz.kCGEventMouseMoved, Quartz.kCGEventLeftMouseDown,
+              Quartz.kCGEventLeftMouseUp):
+        e = Quartz.CGEventCreateMouseEvent(None, t, (x, y), Quartz.kCGMouseButtonLeft)
+        Quartz.CGEventPost(Quartz.kCGHIDEventTap, e)
+        time.sleep(0.08)
+    Quartz.CGEventPost(Quartz.kCGHIDEventTap, Quartz.CGEventCreateMouseEvent(
+        None, Quartz.kCGEventMouseMoved, old, Quartz.kCGMouseButtonLeft))
+
+
+def close_dialogs(parts=("Buy FL Studio", "Welcome to FL Studio")) -> list[str]:
+    """Trial dialogs block the MIDI controller (timeouts) and Escape does not
+    close them. FL forward, then each dialog's own x button (14/15 pt from its
+    top-right corner; bounds read only after FL is in front - in Stage Manager
+    the bounds are the thumbnail's), then focus back to the previous app."""
+    # no early exit: "Welcome" is created only once FL comes to the front
     from fl_studio_mcp.utils.fl_trigger import log_gui
-    osa(f'''tell application "System Events"
-  set prev to name of first application process whose frontmost is true
-  set p to first application process whose bundle identifier is "{FL_ID}"
-  set frontmost of p to true
-  delay 0.2
-  perform action "AXRaise" of (first window of p whose name contains "Buy")
-  delay 0.2
-  key code 53
-  delay 0.2
-  set frontmost of application process prev to true
-end tell''')
-    log_gui("close-buy")
-    return True
+    prev = osa('tell application "System Events" to get name of first application '
+               'process whose frontmost is true')
+    osa(f'tell application id "{FL_ID}" to activate')
+    time.sleep(1.5)
+    closed = []
+    for part in parts:  # Buy first: it sits on top of Welcome
+        if not any(part in name for name, _ in fl_cg_windows()):
+            continue
+        for _ in range(2):
+            hits = [b for name, b in fl_cg_windows() if part in name]
+            if not hits:
+                break
+            b = hits[0]
+            x, y = int(b["X"] + b["Width"] - 14), int(b["Y"] + 15)
+            click(x, y)
+            log_gui("close-" + part.split()[0].lower())
+            time.sleep(0.5)
+        if not any(part in name for name, _ in fl_cg_windows()):
+            closed.append(part)
+    osa('tell application "System Events" to set frontmost of '
+        f'application process "{prev}" to true')
+    return closed
+
+
+def close_buy() -> bool:
+    return bool(close_dialogs(("Buy FL Studio",)))
 
 
 def newest_flp() -> Path | None:
