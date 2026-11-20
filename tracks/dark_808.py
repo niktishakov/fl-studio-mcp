@@ -38,6 +38,8 @@ from fl_io import (  # noqa: E402
 
 BASE_BPM = 85.0
 KICK, CLAP, HAT, SNARE, BASS, KEYS, SAW, SUB, PIANO, SAW2, FLEX, RISER, DOWN = range(13)
+SPARE, SAW3 = 13, 14  # 13 an unused FLEX; 14 = clone of the verse PoiZone, own level
+# (plays the verse PoiZone + hook in the drop's 2nd half)
 # SUB = 3x Osc (the old placeholder channel 7): a pure sine under the 808
 # SAW2 = "PoiZone #2": same notes as the saw, angrier sound, plays the drop only
 
@@ -215,20 +217,38 @@ def chord_at(sec, bar):
 DROP_BARS = 20  # one pass of the drop; it plays twice
 
 
+# Second half (Nik: "the PoiZone from the verse comes back, and step by step
+# our hook - we loop the track"): the one-note F gives way to the verse's
+# strummed PoiZone chords, the hook grows from a fragment to the full cry.
+VERSE_SAW_RHYTHM = ((0, .95), (0.75, .95), (1.5, 1.7), (3, .7), (3.5, .75))
+SECOND_HALF_HOOK = {24: "frag", 28: "full", 32: "frag", 36: "full"}  # drop bar -> form
+
+
 def repeat_drop(P):
-    """The drop's second half = an exact copy of the first 20 bars (every
-    channel: drums, 808, sub, saw layers, pad, hooks, stops)."""
+    """The drop's second half = a copy of the first 20 bars (drums, 808, sub,
+    pad, 808 hooks, stops), but the PoiZone plays the verse and the hook."""
     d0, dm = TL["drop"][0], TL["drop"][DROP_BARS * 4]
     shift = dm - d0
     for ch in P:
         P[ch] += [{**n, "time": round(n["time"] + shift, 4)}
-                  for n in P[ch] if d0 - EPS <= n["time"] < dm - EPS]
+                  for n in P[ch] if d0 - EPS <= n["time"] < dm - EPS
+                  and ch not in (SAW, SAW2)]
+    for bar in range(DROP_BARS, 2 * DROP_BARS):
+        tones = CH[chord_at("drop", bar)]
+        grow = min(1.0, 0.72 + 0.07 * (bar - DROP_BARS))  # softer at first
+        for b, d in VERSE_SAW_RHYTHM:
+            for k, m in enumerate(tones):
+                note(P[SAW3], m + 12, "drop", bar, b + 0.025 * k, d,
+                     h((0.62 if b in (0, 1.5) else 0.5) * grow))
+    for bar, form in SECOND_HALF_HOOK.items():
+        for m, b, d, v in (HOOK[:4] if form == "full" else HOOK_FRAG):
+            note(P[SAW3], m, "drop", bar, b, d, min(1.0, v * 1.15))
 
 
 # ---------------------------------------------------------------- parts
 def parts():
     P = {k: [] for k in (KICK, CLAP, HAT, SNARE, BASS, KEYS, SAW, SUB, PIANO, SAW2, FLEX,
-                         RISER, DOWN)}
+                         RISER, DOWN, SAW3)}
     for rep in (0, 1):  # the prelude melody twice, doubled an octave below
         for i, (m, b, d, v) in enumerate(PRELUDE):
             last = i == len(PRELUDE) - 1
@@ -773,7 +793,8 @@ VOLUMES = {KICK: 0.72, CLAP: 0.55, HAT: 0.36, SNARE: 0.45, BASS: 0.72, KEYS: 0.6
 # new drum samples are 5-8 dB hotter than the stock kit: back to the balance
 MIX_DB = {SAW2: -2.2, KICK: -9.2, CLAP: -10.5, HAT: -7.2, SUB: -4.0,
           SAW: -5.2,   # verse (fl stems 21-23): the PoiZone melody was 14 dB under the kick
-          PIANO: -4.0}  # drop counter-line: -27 dB, a little over the PoiZone (-31)
+          PIANO: -4.0,
+          SAW3: 0.0}  # drop 2nd half: verse PoiZone up to the 1st half's PoiZone level  # drop counter-line: -27 dB, a little over the PoiZone (-31)
 MASTER_VOL = 0.61  # ~-5.6 dB (was 0.66 = -4.1): headroom, the louder mix peaked at +0.3 dB
 # PoiZone Drop (Insert 9) had as much 70-150 Hz as the 808: low shelf down
 SAW2_EQ = [{"band": 0, "freq_hz": 160, "gain_db": -9}]
@@ -796,7 +817,7 @@ PIANO_PARAMS = [(14, 0.0), (2, 0.42), (4, 0.6), (5, 0.5), (1, 0.75),
                 (7, 0.3), (11, 0.45), (12, 0.5), (0, 0.0)]
 NAMES = {"kick": KICK, "clap": CLAP, "hat": HAT, "snare": SNARE,
          "bass": BASS, "keys": KEYS, "saw": SAW, "piano": PIANO, "saw2": SAW2,
-         "flex": FLEX, "riser": RISER, "down": DOWN, "sub": SUB}
+         "flex": FLEX, "riser": RISER, "down": DOWN, "sub": SUB, "saw3": SAW3}
 
 
 # Rules that must hold whatever is edited (fl check runs them before writing)
@@ -808,8 +829,9 @@ def _no_hook_outside_drop(P):
 
 def _one_note_saw(P):
     t0 = (ONE_NOTE_FROM_FL_BAR - 1) * 4
+    t1 = TL["drop"][DROP_BARS * 4]  # the 2nd half of the drop brings the verse back
     bad = {n["midi"] for ch in (SAW, SAW2) for n in P[ch]
-           if n["time"] >= t0 - EPS and n["midi"] not in (53, 65, 77, 89)}
+           if t0 - EPS <= n["time"] < t1 - EPS and n["midi"] not in (53, 65, 77, 89)}
     return [f"PoiZone not on F after FL bar {ONE_NOTE_FROM_FL_BAR}: {sorted(bad)}"] if bad else []
 
 
@@ -879,7 +901,7 @@ def apply_settings(c):
                        .read_text())
     batch(c, [("plugins.setParamValue", {"plugin_index": ch, "param_index": prm["index"],
                                          "value": prm["value"]})
-              for ch in (SAW, SAW2, RISER, DOWN) for prm in fresh], timeout=30)
+              for ch in (SAW, SAW2, RISER, DOWN, SAW3) for prm in fresh], timeout=30)
     keys_params = send(c, "plugins.getParams", {"index": KEYS})["params"]
     cmds = [("tempo.setMap", {"points": [], "enabled": False}),
             ("transport.stop", {}),
@@ -913,6 +935,15 @@ def apply_settings(c):
     cmds += [("mixer.setEq", {"track": 3, **eq}) for eq in HAT_EQ]
     cmds += [("mixer.setEq", {"track": 9, **eq}) for eq in SAW2_EQ]
     cmds += [("mixer.setEq", {"track": 7, **eq}) for eq in SAW_EQ]
+    cmds += [("plugins.setParamValue", {"plugin_index": SAW3, "param_index": pi, "value": v})
+             for pi, v in SAW_PARAMS]  # the verse PoiZone's sound
+    cmds += [("channels.setName", {"index": SAW3, "name": "PoiZone Verse 2"}),
+             ("channels.mute", {"index": SAW3, "muted": False}),
+             ("channels.routeToMixer", {"channel_index": SAW3, "mixer_track": 14}),
+             ("mixer.setTrackName", {"track": 14, "name": "Saw Verse 2"}),
+             ("channels.setName", {"index": SPARE, "name": "spare (unused)"}),
+             ("channels.mute", {"index": SPARE, "muted": True})]
+    cmds += [("mixer.setEq", {"track": 14, **eq}) for eq in SAW_EQ]
     cmds += [("mixer.setTrackVolume", {"track": 3, "volume": HAT_TRACK_VOL})]
     cmds += [("channels.routeToMixer", {"channel_index": SAW, "mixer_track": 7})]
     cmds += [("plugins.setParamValue", {"plugin_index": SAW2, "param_index": pi, "value": v})

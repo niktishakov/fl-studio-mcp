@@ -466,7 +466,7 @@ def menu(*path: str) -> str:
 # Channels 5-12 of dark_808, added in this order after the template's 0-4
 # (Kick, Clap, HiHat, Snare, 808 Astronomic). 7 is a muted placeholder.
 REBUILD_ADD = ["FL Keys", "PoiZone", "3x Osc", "FL Keys", "PoiZone", "FLEX",
-               "PoiZone", "PoiZone"]
+               "PoiZone", "PoiZone", "FLEX", "PoiZone"]  # 13 spare, 14 PoiZone Verse 2
 
 
 def cmd_rebuild(track, args):
