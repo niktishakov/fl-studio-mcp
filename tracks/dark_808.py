@@ -570,6 +570,7 @@ def parts():
     P[SAW2] = [{**n, "duration": round(min(n["duration"], hole - n["time"]), 4)}
                if n["time"] < q1 - EPS else n
                for n in P[SAW2] if not hole - EPS <= n["time"] < q1 - EPS]
+    develop_drop(P)
     # Nik: no soft outro - the track is cut off hard at the end of the drop
     # (the outro section stays in the timeline only so the code above works)
     end = TL["outro"][0]
@@ -590,6 +591,59 @@ def parts():
     P[SUB] = [{**n, "midi": n["midi"] - 12, "velocity": round(n["velocity"] * SUB_VEL, 3)}
               for n in P[BASS]]
     return P
+
+
+# Drop development (review 2026-11-20: "development is weak"): the drop was
+# the same 2-bar drum loop for 20 bars and the PoiZone holds one note (Nik).
+# Something new every 4 bars; a short stop at the end of each 4-bar phrase;
+# from bar 9 a dark pad, from bar 13 a keys counter-line. (bar index 0-based)
+DROP_KEYS_LINE = [[(80, 0, 1.5), (79, 1.5, .5), (77, 2, 2)],      # Fm: Ab G F
+                  [(75, 0, 1), (77, 1, 1), (72, 2, 2)],           # Fm: Eb F C
+                  [(78, 0, 1.5), (77, 1.5, .5), (73, 2, 2)],      # Gb: Gb F Db
+                  [(76, 0, 2), (79, 2, 1), (72, 3, 1)]]           # C:  E G C
+PHRASE_STOPS = (3, 7, 11, 15)  # last half beat of these bars: drums and bass out
+
+
+def develop_drop(P):
+    def add(ch, m, bar, beat, d, v):
+        note(P[ch], m, "drop", bar, beat, d, v)
+    for bar in range(20):
+        blk = bar // 4
+        if blk >= 1:          # 5-8: 16th hat pick-ups
+            for b in (1.75, 3.75):
+                add(HAT, 60, bar, b, 0.06, h(0.36, 0.03))
+        if blk >= 2:          # 9-12: extra kick + 16th hats in the second half
+            if bar % 2 == 0:
+                add(KICK, 60, bar, 3.25, 0.25, h(0.7))
+            for i in range(8, 16, 2):
+                add(HAT, 60, bar, i / 4 + 0.25, 0.06, h(0.3, 0.03))
+        if blk >= 3:          # 13-16: ghost snares
+            for b in (1.75, 2.75):
+                add(SNARE, 60, bar, b, 0.06, h(0.32, 0.03))
+        if blk == 4:          # 17-20: clap on every beat 4 doubled by the snare
+            add(SNARE, 60, bar, 3, 0.2, h(0.7))
+        if bar in (7, 15, 19):  # snare 32nd roll into the next phrase
+            for j in range(8):
+                add(SNARE, 60, bar, 3 + j / 8, 0.05, min(1.0, 0.45 + 0.07 * j))
+        if blk >= 2:          # pad from bar 9: low dark chord, whole bar
+            r, t, f = CH[PROG["drop"][bar % 4]]
+            for k, m in enumerate((r - 12, r, t, f)):
+                add(FLEX, m, bar, 0.04 * k, 3.9, h(0.65, 0.03))
+        if blk >= 3:          # counter-line from bar 13: dirty keys sound on its
+            for m, b, d in DROP_KEYS_LINE[bar % 4]:  # own channel ("Hook Keys")
+                for o in (0, -12):
+                    add(PIANO, m + o, bar, b, d, h(0.9 if o == 0 else 0.75, 0.03))
+    for bar in PHRASE_STOPS:  # the stop: nothing but the saw for half a beat
+        g0, g1 = at("drop", bar, 3.5), at("drop", bar + 1, 0)
+        for ch in (KICK, CLAP, HAT, SNARE, BASS):
+            kept = []
+            for n in P[ch]:
+                if g0 - EPS <= n["time"] < g1 - EPS and not (bar in (7, 15) and ch == SNARE):
+                    continue
+                if n["time"] < g0 - EPS < n["time"] + n["duration"]:
+                    n = {**n, "duration": round(g0 - n["time"] - 0.005, 4)}
+                kept.append(n)
+            P[ch] = kept
 
 
 # ---------------------------------------------------------------- sound
@@ -635,7 +689,8 @@ VOLUMES = {KICK: 0.72, CLAP: 0.55, HAT: 0.36, SNARE: 0.45, BASS: 0.72, KEYS: 0.6
 # fl stems 39-41 (drop): the PoiZone lead was 21 dB under the 808, kick 6-8 dB
 # under the 808 + sub, sub the loudest of all.
 MIX_DB = {SAW2: -2.2, KICK: -2.7, CLAP: -5.0, HAT: -0.2, SUB: -4.0,
-          SAW: -5.2}  # verse (fl stems 21-23): the PoiZone melody was 14 dB under the kick
+          SAW: -5.2,   # verse (fl stems 21-23): the PoiZone melody was 14 dB under the kick
+          PIANO: -4.0}  # drop counter-line: -27 dB, a little over the PoiZone (-31)
 MASTER_VOL = 0.61  # ~-5.6 dB (was 0.66 = -4.1): headroom, the louder mix peaked at +0.3 dB
 # PoiZone Drop (Insert 9) had as much 70-150 Hz as the 808: low shelf down
 SAW2_EQ = [{"band": 0, "freq_hz": 160, "gain_db": -9}]
@@ -774,7 +829,7 @@ def apply_settings(c):
              ("mixer.setTrackName", {"track": 7, "name": "Saw"}),
              ("mixer.setTrackVolume", {"track": 6, "volume": 0.8}),
              ("mixer.setTrackVolume", {"track": 0, "volume": 0.66}),  # master: headroom
-             ("channels.mute", {"index": PIANO, "muted": True}),  # "muted"! "mute" toggles
+             ("channels.mute", {"index": PIANO, "muted": False}),  # "muted"! "mute" toggles
              ("channels.setRec", {"channel": BASS, "param": "PortaTime", "value": PORTA_808})]
     cmds += [("channels.setVolume", {"index": ch, "volume": v}) for ch, v in VOLUMES.items()]
     cmds += [("channels.volumeDb", {"index": ch, "db": db}) for ch, db in MIX_DB.items()]
