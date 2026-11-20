@@ -56,7 +56,9 @@ SECTIONS = [
     # Nik: FL bars 36-39 "shorter, angrier, less rhythm": one stomp bar less
     ("break", 7, 4, [70, 70, 70, 70, 75, 95, (105, 120)], None),
     ("build", 1, 4, [(120, 140)], None),  # snare roll, tempo reaches 140
-    ("drop", 20, 4, 140, 140),  # double speed; 8 + 8 + 4 more bars (Nik: longer)
+    # double speed; 20 bars (8 + 8 + 4, Nik: longer), then the same 20 bars
+    # again (Nik: "the drop twice as long") - see DROP_BARS / repeat_drop
+    ("drop", 40, 4, 140, 140),
     # outro: the drop keeps going, then dies like a stopping tape (140 -> 58);
     # the prelude theme returns and the hook's low F is the last chord
     ("outro", 8, 4, [140, 140, (140, 120), (120, 100), (100, 88), (88, 78),
@@ -210,6 +212,19 @@ def chord_at(sec, bar):
     return PROG[sec][bar % len(PROG[sec])]
 
 
+DROP_BARS = 20  # one pass of the drop; it plays twice
+
+
+def repeat_drop(P):
+    """The drop's second half = an exact copy of the first 20 bars (every
+    channel: drums, 808, sub, saw layers, pad, hooks, stops)."""
+    d0, dm = TL["drop"][0], TL["drop"][DROP_BARS * 4]
+    shift = dm - d0
+    for ch in P:
+        P[ch] += [{**n, "time": round(n["time"] + shift, 4)}
+                  for n in P[ch] if d0 - EPS <= n["time"] < dm - EPS]
+
+
 # ---------------------------------------------------------------- parts
 def parts():
     P = {k: [] for k in (KICK, CLAP, HAT, SNARE, BASS, KEYS, SAW, SUB, PIANO, SAW2, FLEX,
@@ -242,6 +257,8 @@ def parts():
             note(P[ch], m, sec, bar, beat + b, d, min(1.0, v * boost))
     for sec, (bars, bpb) in INFO.items():
         for bar in range(bars):
+            if sec == "drop" and bar >= DROP_BARS:  # copied by repeat_drop
+                continue
             chord = chord_at(sec, bar)
             root = ROOT_808[chord]
             last4 = bar % 4 == 3
@@ -601,6 +618,7 @@ def parts():
                if n["time"] < q1 - EPS else n
                for n in P[SAW2] if not hole - EPS <= n["time"] < q1 - EPS]
     develop_drop(P)
+    repeat_drop(P)
     unify_transitions(P)
     # Nik: no soft outro - the track is cut off hard at the end of the drop
     # (the outro section stays in the timeline only so the code above works)
@@ -637,7 +655,7 @@ HALFTIME = (8, 9, 10)
 def develop_drop(P):
     def add(ch, m, bar, beat, d, v):
         note(P[ch], m, "drop", bar, beat, d, v)
-    for bar in range(20):
+    for bar in range(DROP_BARS):
         blk = bar // 4
         if bar in HALFTIME:   # 9-12 half-time (see the drum patterns): only the pad
             pass
