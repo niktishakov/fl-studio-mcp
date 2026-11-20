@@ -1,0 +1,254 @@
+[
+ {
+  "index": 0,
+  "name": "Volume envelope attack",
+  "value": 0.5,
+  "value_string": "0%"
+ },
+ {
+  "index": 1,
+  "name": "Volume envelope hold",
+  "value": 0.5,
+  "value_string": "0%"
+ },
+ {
+  "index": 2,
+  "name": "Volume envelope decay",
+  "value": 0.5,
+  "value_string": "0%"
+ },
+ {
+  "index": 3,
+  "name": "Volume envelope sustain",
+  "value": 0.5,
+  "value_string": "0%"
+ },
+ {
+  "index": 4,
+  "name": "Volume envelope release",
+  "value": 0.5,
+  "value_string": "0%"
+ },
+ {
+  "index": 5,
+  "name": "Filter envelope attack",
+  "value": 0.5,
+  "value_string": "0%"
+ },
+ {
+  "index": 6,
+  "name": "Filter envelope hold",
+  "value": 0.5,
+  "value_string": "0%"
+ },
+ {
+  "index": 7,
+  "name": "Filter envelope decay",
+  "value": 0.5,
+  "value_string": "0%"
+ },
+ {
+  "index": 8,
+  "name": "Filter envelope sustain",
+  "value": 0.5,
+  "value_string": "0%"
+ },
+ {
+  "index": 9,
+  "name": "Filter envelope release",
+  "value": 0.5,
+  "value_string": "0%"
+ },
+ {
+  "index": 10,
+  "name": "Tone",
+  "value": 0.6584625244140625,
+  "value_string": "66%"
+ },
+ {
+  "index": 11,
+  "name": "Drive",
+  "value": 0.0,
+  "value_string": "0%"
+ },
+ {
+  "index": 12,
+  "name": "Lo-Fi",
+  "value": 0.0,
+  "value_string": "0%"
+ },
+ {
+  "index": 13,
+  "name": "Wobble",
+  "value": 0.0,
+  "value_string": "0%"
+ },
+ {
+  "index": 14,
+  "name": "Chorus",
+  "value": 0.0,
+  "value_string": "0%"
+ },
+ {
+  "index": 15,
+  "name": "Phaser",
+  "value": 0.0,
+  "value_string": "0%"
+ },
+ {
+  "index": 16,
+  "name": "Echo",
+  "value": 0.0,
+  "value_string": "0%"
+ },
+ {
+  "index": 17,
+  "name": "Space",
+  "value": 0.0,
+  "value_string": "0%"
+ },
+ {
+  "index": 18,
+  "name": "Filter cutoff",
+  "value": 0.5,
+  "value_string": "0%"
+ },
+ {
+  "index": 19,
+  "name": "Filter env amt",
+  "value": 0.5,
+  "value_string": "0%"
+ },
+ {
+  "index": 20,
+  "name": "Filter resonance",
+  "value": 0.5,
+  "value_string": "0%"
+ },
+ {
+  "index": 21,
+  "name": "Post filter cutoff",
+  "value": 0.0,
+  "value_string": "0%"
+ },
+ {
+  "index": 22,
+  "name": "Post filter resonance",
+  "value": 0.5,
+  "value_string": "50%"
+ },
+ {
+  "index": 25,
+  "name": "Delay mix",
+  "value": 0.5,
+  "value_string": "50%"
+ },
+ {
+  "index": 26,
+  "name": "Delay time",
+  "value": 0.17992177314211213,
+  "value_string": "2:43"
+ },
+ {
+  "index": 27,
+  "name": "Delay feedback",
+  "value": 0.2599945068359375,
+  "value_string": "32%"
+ },
+ {
+  "index": 28,
+  "name": "Delay mod",
+  "value": 0.3300018310546875,
+  "value_string": "33%"
+ },
+ {
+  "index": 29,
+  "name": "Delay color",
+  "value": 0.8300018310546875,
+  "value_string": "83%"
+ },
+ {
+  "index": 30,
+  "name": "Reverb mix",
+  "value": 0.5,
+  "value_string": "50%"
+ },
+ {
+  "index": 31,
+  "name": "Reverb decay",
+  "value": 0.5,
+  "value_string": "50%"
+ },
+ {
+  "index": 32,
+  "name": "Reverb size",
+  "value": 1.0,
+  "value_string": "100%"
+ },
+ {
+  "index": 33,
+  "name": "Reverb mod",
+  "value": 0.279998779296875,
+  "value_string": "28%"
+ },
+ {
+  "index": 34,
+  "name": "Reverb color",
+  "value": 0.1620330810546875,
+  "value_string": "16%"
+ },
+ {
+  "index": 35,
+  "name": "Limiter pre volume",
+  "value": 0.5,
+  "value_string": "50%"
+ },
+ {
+  "index": 36,
+  "name": "Output volume",
+  "value": 1.0,
+  "value_string": "100%"
+ },
+ {
+  "index": 37,
+  "name": "Delay",
+  "value": 0.0,
+  "value_string": "Off"
+ },
+ {
+  "index": 38,
+  "name": "Reverb",
+  "value": 0.0,
+  "value_string": "Off"
+ },
+ {
+  "index": 39,
+  "name": "Pitch",
+  "value": 0.5,
+  "value_string": "+0 cent"
+ },
+ {
+  "index": 40,
+  "name": "Post filter",
+  "value": 0.0,
+  "value_string": "Off"
+ },
+ {
+  "index": 41,
+  "name": "Limiter",
+  "value": 0.0,
+  "value_string": "Off"
+ },
+ {
+  "index": 42,
+  "name": "Emphasis",
+  "value": 0.0,
+  "value_string": "0%"
+ },
+ {
+  "index": 44,
+  "name": "Reverb Mod speed",
+  "value": 0.2400054931640625,
+  "value_string": "24%"
+ }
+]

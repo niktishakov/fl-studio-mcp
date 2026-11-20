@@ -35,7 +35,8 @@ from fl_io import (  # noqa: E402
 )
 
 BASE_BPM = 85.0
-KICK, CLAP, HAT, SNARE, BASS, KEYS, SAW, _TB, PIANO, SAW2, FLEX, RISER, DOWN = range(13)
+KICK, CLAP, HAT, SNARE, BASS, KEYS, SAW, SUB, PIANO, SAW2, FLEX, RISER, DOWN = range(13)
+# SUB = 3x Osc (the old placeholder channel 7): a pure sine under the 808
 # SAW2 = "PoiZone #2": same notes as the saw, angrier sound, plays the drop only
 
 # (name, bars, beats per bar, tempo at start, tempo at end)
@@ -63,7 +64,12 @@ SECTIONS = [
 # F minor / phrygian. Chords for the saw and keys, roots for the 808.
 CH = {"Fm": [53, 56, 60], "Gb": [54, 58, 61], "Ebm": [51, 54, 58],
       "C": [52, 55, 60], "Db": [53, 56, 61], "Bbm": [53, 58, 61], "Ab": [51, 56, 60]}
-ROOT_808 = {"Fm": 53, "Gb": 54, "Ebm": 51, "C": 48, "Db": 49, "Bbm": 46, "Ab": 44}
+# 808 (FLEX "808 Astronomic"): midi 53 sounds F1 = 44 Hz (measured, fl tone).
+# Roots kept in F1..E2 (44-82 Hz): the old Ab/Bb/C/Db at 26-35 Hz were below
+# what headphones play - the 808 sounded like a kick (review 2026-11-20).
+ROOT_808 = {"Fm": 53, "Gb": 54, "Ebm": 63, "C": 60, "Db": 61, "Bbm": 58, "Ab": 56}
+BASS_RANGE = (53, 64)
+SUB_VEL = 0.85  # 3x Osc plays an octave higher than the 808 for the same midi
 PROG = {"prelude": ["Fm", "Db", "Bbm", "C"] * 2, "intro": ["Fm", "Fm", "Db", "C"],
         "verse": ["Fm", "Fm", "Db", "C"] * 2 + ["Bbm", "Db", "Gb", "C"]
         + ["Fm", "Fm", "Db", "C"],
@@ -186,7 +192,8 @@ def h(v, s=0.05):
 
 # ---------------------------------------------------------------- parts
 def parts():
-    P = {k: [] for k in (KICK, CLAP, HAT, SNARE, BASS, KEYS, SAW, PIANO, SAW2, FLEX, RISER, DOWN)}
+    P = {k: [] for k in (KICK, CLAP, HAT, SNARE, BASS, KEYS, SAW, SUB, PIANO, SAW2, FLEX,
+                         RISER, DOWN)}
     for rep in (0, 1):  # the prelude melody twice, doubled an octave below
         for i, (m, b, d, v) in enumerate(PRELUDE):
             last = i == len(PRELUDE) - 1
@@ -577,6 +584,11 @@ def parts():
     last += [(SAW2, m, 3.0) for m in (53, 65, 77, 89)] + [(SAW, m, 3.0) for m in (53, 65, 77)]
     for ch, m, d in last:
         P[ch].append({"midi": m, "time": t, "duration": d, "velocity": 1.0})
+    # Sub: a sine under every 808 note, same pitch (3x Osc sounds an octave
+    # higher for the same midi, so -12), same glides - the 808 keeps the punch
+    # and the character, the sine holds the low end while the 808 decays
+    P[SUB] = [{**n, "midi": n["midi"] - 12, "velocity": round(n["velocity"] * SUB_VEL, 3)}
+              for n in P[BASS]]
     return P
 
 
@@ -609,8 +621,15 @@ KEYS_PARAMS = [(14, 0.12), (2, 0.62), (4, 0.68), (11, 0.5), (12, 0.5),
 PAD_PRESET = 31  # "PAD Ashword"
 PAD_FX = {"Space": 0.0, "Phaser": 0.0, "Chorus": 0.0, "Delay": 0.0, "Delay mix": 0.0,
           "Reverb": 1.0, "Reverb mix": 0.18}
+# Sub (3x Osc): osc 1 sine two octaves down, osc 2 and 3 silent
+SUB_PARAMS = [(1, 0.0), (2, 0.0), (3, 0.5), (6, 0.0), (13, 0.0)]
+# 808 (FLEX): macros are bipolar (0.5 = preset as is). The 808 is a sample
+# that decays ~14 dB/s whatever the sustain (measured): the sub holds the low
+# end. A little drive adds harmonics that headphones can play.
+BASS_PARAMS = [(3, 0.5), (4, 0.5), (11, 0.25)]
 VOLUMES = {KICK: 0.72, CLAP: 0.55, HAT: 0.36, SNARE: 0.45, BASS: 0.72, KEYS: 0.62, SAW: 0.45,
-           PIANO: 0.8, SAW2: 0.45, FLEX: 0.55, RISER: 0.6, DOWN: 0.55}  # PIANO = Hook Keys
+           PIANO: 0.8, SAW2: 0.45, FLEX: 0.55, RISER: 0.6, DOWN: 0.55,
+           SUB: 1.0}  # PIANO = Hook Keys; SUB 1.0: +4.5 dB at 30-70 Hz in the drop
 # Downlifter (PoiZone #4): noise from an open filter that closes (-100% filter
 # envelope, ~3 s) while the volume fades (~2.5 s).
 DOWN_PARAMS = [(9, 1.0), (18, 0.9), (19, 0.3), (10, 0.0), (11, 0.0), (12, 0.5), (13, 0.0),
@@ -629,7 +648,7 @@ PIANO_PARAMS = [(14, 0.0), (2, 0.42), (4, 0.6), (5, 0.5), (1, 0.75),
                 (7, 0.3), (11, 0.45), (12, 0.5), (0, 0.0)]
 NAMES = {"kick": KICK, "clap": CLAP, "hat": HAT, "snare": SNARE,
          "bass": BASS, "keys": KEYS, "saw": SAW, "piano": PIANO, "saw2": SAW2,
-         "flex": FLEX, "riser": RISER, "down": DOWN}
+         "flex": FLEX, "riser": RISER, "down": DOWN, "sub": SUB}
 
 
 # Rules that must hold whatever is edited (fl check runs them before writing)
@@ -661,7 +680,14 @@ def _saw_gap_before_drop(P):
     return ["PoiZone sounds in the 0.5 s gap before the drop"] if bad else []
 
 
-CHECKS = [("hook 808 only in the drop", _no_hook_outside_drop),
+def _bass_audible(P):
+    lo, hi = BASS_RANGE
+    bad = sorted({n["midi"] for n in P[BASS] if not n.get("porta") and not lo <= n["midi"] <= hi})
+    return [f"808 notes outside F1..E2 (inaudible on headphones): {bad}"] if bad else []
+
+
+CHECKS = [("808 in the audible range", _bass_audible),
+          ("hook 808 only in the drop", _no_hook_outside_drop),
           ("one-note PoiZone", _one_note_saw),
           ("no rhythm FL bars 36-37", _no_rhythm_before_drop),
           ("saw gap before the drop", _saw_gap_before_drop)]
@@ -710,7 +736,14 @@ def apply_settings(c):
              for prm in keys_params]
     cmds += [("channels.routeToMixer", {"channel_index": KEYS, "mixer_track": 6}),
              ("mixer.setTrackName", {"track": 6, "name": "Keys"}),
-             ("channels.mute", {"index": 7, "muted": True})]  # placeholder channel 7
+             ("channels.mute", {"index": SUB, "muted": False}),
+             ("channels.setName", {"index": SUB, "name": "Sub"}),
+             ("channels.routeToMixer", {"channel_index": SUB, "mixer_track": 13}),
+             ("mixer.setTrackName", {"track": 13, "name": "Sub"})]
+    cmds += [("plugins.setParamValue", {"plugin_index": SUB, "param_index": pi, "value": v})
+             for pi, v in SUB_PARAMS]
+    cmds += [("plugins.setParamValue", {"plugin_index": BASS, "param_index": pi, "value": v})
+             for pi, v in BASS_PARAMS]
     cmds += [("channels.setName", {"index": PIANO, "name": "Hook Keys"}),
              ("mixer.setTrackName", {"track": 8, "name": "Hook Keys"}),
              ("mixer.setTrackVolume", {"track": 8, "volume": 0.8}),

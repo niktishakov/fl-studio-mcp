@@ -9,6 +9,7 @@
     fl play 34.5 6 [--rec]           same, from seconds
     fl ab "del hat bars 39-40" [--bars 37-41] [--keep]   variant A vs B by ear + numbers
     fl edit ls | add "<op>" | rm N | off N | on N         edits on top of the track
+    fl tone bass 53 [2]              one live note: fundamental Hz + decay every 0.25 s
     fl params saw2 [filter]          plugin parameters (saved to tracks/plugins/)
     fl param saw2 "Cutoff" 0.6       set one parameter by name or index
     fl save                          save the .flp (closes the trial "Buy" window)
@@ -229,6 +230,44 @@ def cmd_ab(track, args):
         print("back to A (use --keep to keep B)")
 
 
+def tone(c, ch: int, midi: int, hold: float = 2.0, tail: float = 1.0) -> dict:
+    """Play one note on a channel (FL stopped, live note), record it from
+    Background Music: fundamental (Hz), level and decay every 0.25 s."""
+    import numpy as np
+    wav = Path("/tmp/fl_tone.wav")
+    rec = subprocess.Popen(["ffmpeg", "-loglevel", "error", "-y", "-f", "avfoundation",
+                            "-i", ":6", "-t", str(hold + tail + 0.4), str(wav)])
+    time.sleep(0.4)
+    fl_io.send(c, "channels.triggerNote", {"channel": ch, "note": midi, "velocity": 110})
+    time.sleep(hold)
+    fl_io.send(c, "channels.triggerNote", {"channel": ch, "note": midi, "velocity": 0})
+    rec.wait()
+    raw = subprocess.run(["ffmpeg", "-loglevel", "error", "-i", str(wav), "-ac", "1",
+                          "-ar", "48000", "-f", "f32le", "-"], capture_output=True).stdout
+    x = np.frombuffer(raw, np.float32)
+    if len(x) < 4800 or np.abs(x).max() < 1e-6:
+        return {"error": "silence"}
+    on = int(np.argmax(np.abs(x) > np.abs(x).max() * 0.1))
+    seg = x[on + 2400:on + 2400 + 48000]  # 50 ms after the attack, 1 s
+    spec = np.abs(np.fft.rfft(seg * np.hanning(len(seg)), 1 << 18))
+    f = np.fft.rfftfreq(1 << 18, 1 / 48000)
+    band = (f > 25) & (f < 600)
+    f0 = float(f[band][np.argmax(spec[band])])
+    w = 12000
+    env = [round(float(20 * np.log10(np.sqrt(np.mean(x[i:i + w] ** 2)) + 1e-9)))
+           for i in range(on, len(x) - w, w)]
+    return {"f0 Hz": round(f0, 1), "peak dB": round(float(20 * np.log10(np.abs(x).max())), 1),
+            "dB every 0.25 s": env}
+
+
+def cmd_tone(track, args):
+    c = conn()
+    hold = float(args[2]) if len(args) > 2 else 2.0
+    r = tone(c, chan(track, args[0]), int(args[1]), hold)
+    for k, v in r.items():
+        print(f"{k}: {v}")
+
+
 def cmd_params(track, args):
     ch = chan(track, args[0])
     flt = args[1].lower() if len(args) > 1 else ""
@@ -442,7 +481,8 @@ def cmd_gui(track, args):
 
 CMDS = {"check": cmd_check, "map": cmd_map, "notes": cmd_notes, "edit": cmd_edit,
         "write": cmd_write, "play": cmd_play, "ab": cmd_ab, "params": cmd_params,
-        "param": cmd_param, "save": cmd_save, "rebuild": cmd_rebuild, "state": cmd_state, "gui": cmd_gui}
+        "param": cmd_param, "save": cmd_save, "rebuild": cmd_rebuild, "tone": cmd_tone,
+        "state": cmd_state, "gui": cmd_gui}
 
 
 def main():
