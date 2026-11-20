@@ -198,7 +198,8 @@ def h(v, s=0.05):
 # Nik: the verse's bass line of FL bars 22-26 (block C: Bb Db Gb C) comes
 # back in the middle of the drop - from the return of the full beat (FL bar
 # 45), 4 drop bars, with the drop's rhythm. (drop bar index 0-based)
-DROP_VERSE_BASS = {11: "Bbm", 12: "Db", 13: "Gb", 14: "C"}
+# Tried {11: "Bbm", 12: "Db", 13: "Gb", 14: "C"} - Nik: "came out bad".
+DROP_VERSE_BASS = {}
 
 
 def chord_at(sec, bar):
