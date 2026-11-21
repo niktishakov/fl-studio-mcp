@@ -237,9 +237,8 @@ def tone(c, ch: int, midi: int, hold: float = 2.0, tail: float = 1.0) -> dict:
     Background Music: fundamental (Hz), level and decay every 0.25 s."""
     import numpy as np
     wav = Path("/tmp/fl_tone.wav")
-    rec = subprocess.Popen(["ffmpeg", "-loglevel", "error", "-y", "-f", "avfoundation",
-                            "-i", fl_io.bm_device(), "-t", str(hold + tail + 0.4), str(wav)])
-    time.sleep(0.4)
+    rec = subprocess.Popen(fl_io.rec_cmd(hold + tail + 0.4, wav))
+    time.sleep(0.6)
     fl_io.send(c, "channels.triggerNote", {"channel": ch, "note": midi, "velocity": 110})
     time.sleep(hold)
     fl_io.send(c, "channels.triggerNote", {"channel": ch, "note": midi, "velocity": 0})

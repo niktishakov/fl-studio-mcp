@@ -56,9 +56,8 @@ def play(start: float, dur: float = 6.0, rec: bool = False, quiet: bool = False)
         raise RuntimeError(f"FL did not move to {start} s")
     proc = None
     if rec:
-        proc = subprocess.Popen(["ffmpeg", "-loglevel", "error", "-y", "-f", "avfoundation",
-                                 "-i", fl_io.bm_device(), "-t", str(dur + 0.6), str(REC)])
-        time.sleep(0.3)
+        proc = subprocess.Popen(fl_io.rec_cmd(dur + 0.6, REC))
+        time.sleep(0.6)  # PortAudio opens the device
     fl_io.send(c, "transport.start")
     p0 = fl_io.send(c, "transport.getPos")
     if abs(p0["ms"] / 1000 - start) > 0.5:

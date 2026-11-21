@@ -45,6 +45,15 @@ def bm_device() -> str:
     return ":" + m.group(1)
 
 
+AUDIO_PY = str(Path.home() / ".venvs/audio/bin/python")
+BMREC = str(Path(__file__).resolve().parent / "bmrec.py")
+
+
+def rec_cmd(seconds: float, out) -> list:
+    """Command that records `seconds` from Background Music to `out` (PortAudio)."""
+    return [AUDIO_PY, BMREC, str(seconds), str(out)]
+
+
 def send(c, action, params=None, timeout=5.0):
     r = c.send_command(action, params or {}, timeout=timeout)
     if r.get("error"):
