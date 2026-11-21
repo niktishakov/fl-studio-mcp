@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import sys
 import time
 from pathlib import Path
@@ -252,6 +253,49 @@ def repeat_drop(P):
             note(P[SAW3], m, "drop", bar, b, d, min(1.0, v * 1.15))
     # (a distorted piano ending was tried - the prelude theme, then the hook
     # "cry": Nik: "too gentle", "does not fit", "total crap" - removed)
+
+
+# Nik (2026-11-20): "try a totally different piano intro, 3 variants".
+# A ostinato, B falling arpeggios, C chords + answer. Same chords (PROG
+# prelude), the pad stays; no hook at the end. "" = the original prelude.
+PRELUDE_VARIANT = os.environ.get("PRELUDE_VARIANT", "")
+
+
+def prelude_variant(P, v):
+    t1 = TL["intro"][0]
+    P[KEYS] = [n for n in P[KEYS] if n["time"] >= t1 - EPS]
+
+    def k(m, bar, beat, d, vel):
+        note(P[KEYS], m, "prelude", bar, beat, d, vel)
+    for bar in range(8):
+        r, t, f = CH[PROG["prelude"][bar]]
+        second = bar >= 4
+        if v == "A":  # low octaves + 8th ostinato with a semitone rub
+            for m in (r - 12, r - 24):
+                k(m, bar, 0, 3.9, h(0.85, 0.03))
+            figure = [f + 12, f + 13, f + 12, t + 12] * 2
+            for q, m in enumerate(figure):
+                for o in ((0, 12) if second else (0,)):
+                    k(m + o, bar, q * 0.5, 0.45, h((0.72 if q % 2 == 0 else 0.56)
+                                                   * (1.0 if o == 0 else 0.8), 0.03))
+        elif v == "B":  # falling and rising arpeggio over two octaves, 8th triplets
+            for m in (r - 12, r - 24):
+                k(m, bar, 0, 3.9, h(0.8, 0.03))
+            down = [f + 24, t + 24, r + 24, f + 12, t + 12, r + 12]
+            figure = down + down[::-1]
+            for q, m in enumerate(figure):
+                k(m, bar, q / 3, 0.4, h(0.66 if q % 3 == 0 else 0.5, 0.03))
+            if second:  # long melody notes on top
+                k(f + 24 + (1 if bar % 2 else 0), bar, 0, 3.8, h(0.78, 0.03))
+        elif v == "C":  # heavy chord on 1, soft echo on 3, an answer every 2 bars
+            voicing = [r - 12, r, t, f, r + 12]
+            for j, m in enumerate(voicing):
+                k(m, bar, 0.02 * j, 1.9, h(0.9, 0.03))
+                k(m, bar, 2 + 0.02 * j, 1.8, h(0.5, 0.03))
+            if bar % 2 == 1:
+                for m, b in ((80, 2.5), (79, 3.0), (77, 3.5)):
+                    for o in ((0, -12) if second else (0,)):
+                        k(m + o, bar, b, 0.5, h(0.82, 0.03))
 
 
 # ---------------------------------------------------------------- parts
@@ -648,6 +692,8 @@ def parts():
                for n in P[SAW2] if not hole - EPS <= n["time"] < q1 - EPS]
     develop_drop(P)
     repeat_drop(P)
+    if PRELUDE_VARIANT:
+        prelude_variant(P, PRELUDE_VARIANT)
     unify_transitions(P)
     # Nik: no soft outro - the track is cut off hard at the end of the drop
     # (the outro section stays in the timeline only so the code above works)
