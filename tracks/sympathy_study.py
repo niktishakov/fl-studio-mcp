@@ -38,8 +38,10 @@ CLAP_AT = [1, 3, 5, 7]
 # FLEX 808: midi 53 sounds F1 (measured on this kit) -> standard midi + 24
 BASS_LINE = [(27, 0.0, 5.75), (31, 5.75, 0.25), (31, 6.0, 2.0)]  # (std midi, beat, len)
 BASS_OFFSET = 24
-# re-done on cleaner stems (htdemucs_ft on the whole track, 2026-11-21):
-# the synth riff on Eb3 with Eb4 octaves, G3 at the end of the cycle
+# re-done on cleaner stems (htdemucs_ft on the whole track, 2026-11-21).
+# SYNTH_STABS (only the hits repeating in 2+ cycles) was wrong - Nik: "the
+# synth melody is not right": the full contour (pyin) is a steady 16th pulse
+# on Eb (6 beats) then G (2 beats), see parts(). Kept for reference:
 SYNTH_STABS = [(51, 0, .25), (51, .75, .25), (51, 1.5, .25), (63, 1.5, .25),
                (51, 1.75, .25), (51, 4, .5), (63, 4, .5), (55, 6, .5)]
 # the vocal chant (almost one note, Bb3) on a voice-like synth lead
@@ -91,8 +93,10 @@ def parts():
             if b == 6.0:
                 note["porta"] = True  # slide out of the pick-up
             P[BASS].append(note)
-        for m, b, d in SYNTH_STABS:
-            n(P[SYNTH], m, o + b, d, 0.8)
+        for i in range(32):  # 16th pulse: Eb3+Eb4 for 6 beats, G3+G4 for 2 (with the bass)
+            root = 51 if i < 24 else 55
+            for m in (root, root + 12):
+                n(P[SYNTH], m, o + i / 4, 0.2, 0.85 if i % 2 == 0 else 0.68)
         for m, b, d in LEAD_LINE:
             n(P[LEAD], m, o + b, d - 0.02, 0.85)
         n(P[NOISE], 72, o, 7.9, 0.45)
