@@ -26,9 +26,9 @@ from fl_io import batch, send  # noqa: E402
 
 BASE_BPM = 135.0
 EPS = 1e-3
-KICK, CLAP, HAT, SNARE, BASS, SYNTH = range(6)
+KICK, CLAP, HAT, SNARE, BASS, SYNTH, LEAD, NOISE = range(8)
 NAMES = {"kick": KICK, "clap": CLAP, "hat": HAT, "snare": SNARE, "bass": BASS,
-         "synth": SYNTH}
+         "synth": SYNTH, "lead": LEAD, "noise": NOISE}
 CYCLES = 8  # 8 x 2 bars = 16 bars
 TL = {"loop": [float(i) for i in range(CYCLES * 8 + 1)]}  # beats; for listen.where
 
@@ -38,16 +38,35 @@ CLAP_AT = [1, 3, 5, 7]
 # FLEX 808: midi 53 sounds F1 (measured on this kit) -> standard midi + 24
 BASS_LINE = [(27, 0.0, 5.75), (31, 5.75, 0.25), (31, 6.0, 2.0)]  # (std midi, beat, len)
 BASS_OFFSET = 24
-SYNTH_STABS = [(51, 1.25, .25), (63, 1.5, .25), (55, 1.75, .25), (51, 2.5, .5),
-               (51, 3.0, .5), (51, 3.75, .25), (51, 4.25, .5), (55, 6.5, .25),
-               (55, 7.25, .25), (55, 7.5, .25)]
+# re-done on cleaner stems (htdemucs_ft on the whole track, 2026-11-21):
+# the synth riff on Eb3 with Eb4 octaves, G3 at the end of the cycle
+SYNTH_STABS = [(51, 0, .25), (51, .75, .25), (51, 1.5, .25), (63, 1.5, .25),
+               (51, 1.75, .25), (51, 4, .5), (63, 4, .5), (55, 6, .5)]
+# the vocal chant (almost one note, Bb3) on a voice-like synth lead
+LEAD_LINE = [(58, 0, .25), (63, .25, .5), (58, 1, .25), (58, 1.25, .5), (58, 2, .25),
+             (58, 2.25, .5), (58, 5.25, .5), (55, 6.5, .5), (58, 7, .5), (65, 7.5, .5)]
+LEAD_PRESET = "LED Voxy Ethnic"
+# a quiet bright noise bed (the hiss under the original's synth layer)
+NOISE_PARAMS = [(9, 1.0), (18, 0.85), (19, 0.3), (24, 1.0)]  # noise, cutoff, res, sustain
+BASS_DRIVE = 0.5  # FLEX 808 Drive: the original 808 is distorted (octave harmonics)
 # PoiZone as FL adds it has the arpeggiator on and transposes -24: off / 0
 SYNTH_PARAMS = [(17, 0.5), (69, 0.0), (47, 0.0), (11, 0.0)]
+# The synth stab built from a measurement of the original (Nik: none of three
+# presets was close): 2nd harmonic 6 dB over the fundamental -> saw + saw an
+# octave up, louder; noisy (flatness 0.38) -> 30% noise; bright (centroid
+# 4.3 kHz) -> filter open, no filter envelope; ~250 ms -> amp decay 293 ms.
+# The fresh PoiZone's closed filter (34%, 2.5 s envelope), delay 56% and
+# chorus made it a low hum.
+SYNTH_PATCH = [(0, 0.0), (2, 0.0), (4, 0.0), (6, 0.75), (8, 0.62), (9, 0.3),
+               (10, 0.5), (18, 0.92), (19, 0.2), (22, 0.0), (23, 0.35), (24, 0.25),
+               (25, 0.2), (29, 0.3), (31, 0.0), (39, 0.0)]
 VOLUMES = {KICK: 0.78, CLAP: 0.7, HAT: 0.45, SNARE: 0.0, BASS: 0.8, SYNTH: 0.55}
 # measured (fl stems 1-2): the 808 was 15-40 dB over everything and the mix
 # clipped (Nik: "it crackles") -> channel volume in dB, mixer tracks up
 # target as in Dark 808: kick ~ 808, clap and synth -8 dB, hats -15 dB
-MIX_DB = {KICK: -6.5, CLAP: -6.0, HAT: 0.0, BASS: -13.0, SYNTH: -5.5}
+MIX_DB = {KICK: -6.5, CLAP: -6.0, HAT: 0.0, BASS: -9.0, SYNTH: -8.0, LEAD: -0.5,
+          NOISE: -10.0}
+SYNTH_EQ = [{"band": 0, "freq_hz": 150, "gain_db": 0}]  # flat (the low end came from the patch)
 MIXER_VOL = {3: 1.0, 6: 1.0, 0: 0.66}  # hat, synth +5.6 dB; master -4 dB (peak was +0.3)
 
 
@@ -74,6 +93,9 @@ def parts():
             P[BASS].append(note)
         for m, b, d in SYNTH_STABS:
             n(P[SYNTH], m, o + b, d, 0.8)
+        for m, b, d in LEAD_LINE:
+            n(P[LEAD], m, o + b, d - 0.02, 0.85)
+        n(P[NOISE], 72, o, 7.9, 0.45)
     return P
 
 
@@ -91,11 +113,33 @@ def apply_settings(c):
     t0 = time.time()
     cmds = [("transport.stop", {}), ("patterns.jump", {"index": 1, "name": "Sympathy study"}),
             ("transport.setTempo", {"bpm": BASE_BPM})]
+    from fl_io import goto_preset
+    names = send(c, "plugins.preset", {"channel": LEAD, "list": True}, timeout=15)["presets"]
+    print("lead preset:", goto_preset(c, LEAD, names.index(LEAD_PRESET)))
+    import json
+    from pathlib import Path
+    fresh = json.loads((Path(__file__).resolve().parent / "plugins" / "PoiZone_fresh.json")
+                       .read_text())
+    cmds += [("plugins.setParamValue", {"plugin_index": SYNTH, "param_index": prm["index"],
+                                        "value": prm["value"]}) for prm in fresh]
+    cmds += [("plugins.setParamValue", {"plugin_index": ch, "param_index": pi, "value": v})
+             for ch in (SYNTH, NOISE) for pi, v in SYNTH_PARAMS]
     cmds += [("plugins.setParamValue", {"plugin_index": SYNTH, "param_index": pi, "value": v})
-             for pi, v in SYNTH_PARAMS]
+             for pi, v in SYNTH_PATCH]
+    cmds += [("plugins.setParamValue", {"plugin_index": LEAD, "param_index": pi, "value": v})
+             for pi, v in ((69, 0.0), (47, 0.0), (31, 0.0), (39, 0.0))]  # no arp/gate/fx
+    cmds += [("plugins.setParamValue", {"plugin_index": NOISE, "param_index": pi, "value": v})
+             for pi, v in NOISE_PARAMS]
+    cmds += [("plugins.setParamValue",
+              {"plugin_index": BASS, "param_index": 11, "value": BASS_DRIVE})]
+    cmds += [("channels.setName", {"index": LEAD, "name": "Lead (vocal chant)"}),
+             ("channels.setName", {"index": NOISE, "name": "Noise bed"}),
+             ("channels.routeToMixer", {"channel_index": LEAD, "mixer_track": 7}),
+             ("channels.routeToMixer", {"channel_index": NOISE, "mixer_track": 8})]
     cmds += [("channels.setVolume", {"index": ch, "volume": v}) for ch, v in VOLUMES.items()]
     cmds += [("channels.volumeDb", {"index": ch, "db": db}) for ch, db in MIX_DB.items()]
     cmds += [("mixer.setTrackVolume", {"track": t, "volume": v}) for t, v in MIXER_VOL.items()]
+    cmds += [("mixer.setEq", {"track": 6, **eq}) for eq in SYNTH_EQ]
     cmds += [("channels.setName", {"index": SYNTH, "name": "Synth (PoiZone)"}),
              ("channels.routeToMixer", {"channel_index": SYNTH, "mixer_track": 6})]
     batch(c, cmds, timeout=15)
