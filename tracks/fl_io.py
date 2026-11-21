@@ -33,6 +33,18 @@ MARK_TICK = MARK_STEP * TICKS_PER_STEP
 CACHE_DIR = Path(__file__).resolve().parent / ".cache"
 
 
+def bm_device() -> str:
+    """avfoundation input of "Background Music" (its index changes after a reboot)."""
+    import re
+    import subprocess
+    out = subprocess.run(["ffmpeg", "-f", "avfoundation", "-list_devices", "true", "-i", ""],
+                         capture_output=True, text=True).stderr
+    m = re.search(r"\[(\d+)\] Background Music\s*$", out, re.M)
+    if not m:
+        raise RuntimeError("Background Music input not found (is the app running?)")
+    return ":" + m.group(1)
+
+
 def send(c, action, params=None, timeout=5.0):
     r = c.send_command(action, params or {}, timeout=timeout)
     if r.get("error"):

@@ -158,6 +158,7 @@ def play_args(track, args):
 
 def cmd_play(track, args):
     import listen
+    listen.track = track  # positions are named in this track's sections
     start, dur, rec = play_args(track, args)
     listen.play(start, dur, rec)
 
@@ -237,7 +238,7 @@ def tone(c, ch: int, midi: int, hold: float = 2.0, tail: float = 1.0) -> dict:
     import numpy as np
     wav = Path("/tmp/fl_tone.wav")
     rec = subprocess.Popen(["ffmpeg", "-loglevel", "error", "-y", "-f", "avfoundation",
-                            "-i", ":6", "-t", str(hold + tail + 0.4), str(wav)])
+                            "-i", fl_io.bm_device(), "-t", str(hold + tail + 0.4), str(wav)])
     time.sleep(0.4)
     fl_io.send(c, "channels.triggerNote", {"channel": ch, "note": midi, "velocity": 110})
     time.sleep(hold)

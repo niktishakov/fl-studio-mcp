@@ -21,7 +21,8 @@ import time
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-import dark_808 as track  # noqa: E402
+import dark_808 as track  # noqa: E402  (fl play swaps in the current track)
+import fl_io  # noqa: E402
 
 REC = Path("/tmp/fl_listen.wav")
 
@@ -41,32 +42,32 @@ def where(seconds: float) -> str:
 
 
 def play(start: float, dur: float = 6.0, rec: bool = False, quiet: bool = False) -> None:
-    c = track.get_connection()
+    c = fl_io.get_connection()
     c.ensure_connected()
-    track.send(c, "transport.stop")
+    fl_io.send(c, "transport.stop")
     # stop() moves the cursor back to where play started a moment later and can
     # undo a setPosition sent right after it: set, read back, repeat until it holds
     for _ in range(10):
-        track.send(c, "transport.setPosition", {"position": int(start * 1000), "mode": 0})
+        fl_io.send(c, "transport.setPosition", {"position": int(start * 1000), "mode": 0})
         time.sleep(0.15)
-        if abs(track.send(c, "transport.getPos")["ms"] / 1000 - start) < 0.1:
+        if abs(fl_io.send(c, "transport.getPos")["ms"] / 1000 - start) < 0.1:
             break
     else:
         raise RuntimeError(f"FL did not move to {start} s")
     proc = None
     if rec:
         proc = subprocess.Popen(["ffmpeg", "-loglevel", "error", "-y", "-f", "avfoundation",
-                                 "-i", ":6", "-t", str(dur + 0.6), str(REC)])
+                                 "-i", fl_io.bm_device(), "-t", str(dur + 0.6), str(REC)])
         time.sleep(0.3)
-    track.send(c, "transport.start")
-    p0 = track.send(c, "transport.getPos")
+    fl_io.send(c, "transport.start")
+    p0 = fl_io.send(c, "transport.getPos")
     if abs(p0["ms"] / 1000 - start) > 0.5:
-        track.send(c, "transport.stop")
+        fl_io.send(c, "transport.stop")
         raise RuntimeError(f"FL started at {p0['ms'] / 1000:.1f} s, not {start} s")
     time.sleep(dur)
-    p1 = track.send(c, "transport.getPos")
-    track.send(c, "transport.stop")
-    track.send(c, "transport.setPosition", {"position": 0, "mode": 0})
+    p1 = fl_io.send(c, "transport.getPos")
+    fl_io.send(c, "transport.stop")
+    fl_io.send(c, "transport.setPosition", {"position": 0, "mode": 0})
     if not (p0["playing"] and p1["playing"]) or p0["song_mode"]:
         print("WARNING: FL was not playing the pattern the whole time", p0, p1)
     a, b = p0["ms"] / 1000, p1["ms"] / 1000
