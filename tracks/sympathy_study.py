@@ -44,6 +44,17 @@ BASS_OFFSET = 24
 # on Eb (6 beats) then G (2 beats), see parts(). Kept for reference:
 SYNTH_STABS = [(51, 0, .25), (51, .75, .25), (51, 1.5, .25), (63, 1.5, .25),
                (51, 1.75, .25), (51, 4, .5), (63, 4, .5), (55, 6, .5)]
+# Nik: "the rhythm is not right" (the 16th pulse was wrong too). The synth's
+# note starts (onset detection, same in both cycles) are long held notes
+# re-hit on 16th-triplet positions: (beat in the cycle, root midi)
+SYNTH_HITS = [(0.0, 51), (6.0, 55)]  # held like the bass: Eb for 6 beats, G for 2
+# Nik: the sound is "a wave" in the bass and the synth stems: measured, the
+# brightness swings ±460 Hz and the bass loudness ±6 dB once every 2 beats
+# (1.1-1.27 Hz). The "triplet re-hits" were the peaks of that wave. -> held
+# notes + a filter LFO (PoiZone 1.09 Hz = 2 beats at 135, retriggered by each
+# note) and FLEX's Wobble on the 808.
+SYNTH_LFO = [(18, 0.5), (26, 0.85), (27, 1.0), (28, 0.5195), (68, 0.5), (24, 0.9)]
+BASS_WOBBLE = 0.6
 # the vocal chant (almost one note, Bb3) on a voice-like synth lead
 LEAD_LINE = [(58, 0, .25), (63, .25, .5), (58, 1, .25), (58, 1.25, .5), (58, 2, .25),
              (58, 2.25, .5), (58, 5.25, .5), (55, 6.5, .5), (58, 7, .5), (65, 7.5, .5)]
@@ -61,7 +72,7 @@ SYNTH_PARAMS = [(17, 0.5), (69, 0.0), (47, 0.0), (11, 0.0)]
 # chorus made it a low hum.
 SYNTH_PATCH = [(0, 0.0), (2, 0.0), (4, 0.0), (6, 0.75), (8, 0.62), (9, 0.3),
                (10, 0.5), (18, 0.92), (19, 0.2), (22, 0.0), (23, 0.35), (24, 0.25),
-               (25, 0.2), (29, 0.3), (31, 0.0), (39, 0.0)]
+               (25, 0.2), (29, 0.3), (31, 0.0), (39, 0.0), (24, 0.6)]  # sustain up: held notes
 VOLUMES = {KICK: 0.78, CLAP: 0.7, HAT: 0.45, SNARE: 0.0, BASS: 0.8, SYNTH: 0.55}
 # measured (fl stems 1-2): the 808 was 15-40 dB over everything and the mix
 # clipped (Nik: "it crackles") -> channel volume in dB, mixer tracks up
@@ -93,10 +104,10 @@ def parts():
             if b == 6.0:
                 note["porta"] = True  # slide out of the pick-up
             P[BASS].append(note)
-        for i in range(32):  # 16th pulse: Eb3+Eb4 for 6 beats, G3+G4 for 2 (with the bass)
-            root = 51 if i < 24 else 55
+        hits = SYNTH_HITS + [(8.0, None)]
+        for (b, root), (b2, _) in zip(hits, hits[1:]):  # held until the next hit
             for m in (root, root + 12):
-                n(P[SYNTH], m, o + i / 4, 0.2, 0.85 if i % 2 == 0 else 0.68)
+                n(P[SYNTH], m, o + b, b2 - b - 0.03, 0.85)
         for m, b, d in LEAD_LINE:
             n(P[LEAD], m, o + b, d - 0.02, 0.85)
         n(P[NOISE], 72, o, 7.9, 0.45)
@@ -129,7 +140,9 @@ def apply_settings(c):
     cmds += [("plugins.setParamValue", {"plugin_index": ch, "param_index": pi, "value": v})
              for ch in (SYNTH, NOISE) for pi, v in SYNTH_PARAMS]
     cmds += [("plugins.setParamValue", {"plugin_index": SYNTH, "param_index": pi, "value": v})
-             for pi, v in SYNTH_PATCH]
+             for pi, v in SYNTH_PATCH + SYNTH_LFO]
+    cmds += [("plugins.setParamValue",
+              {"plugin_index": BASS, "param_index": 13, "value": BASS_WOBBLE})]
     cmds += [("plugins.setParamValue", {"plugin_index": LEAD, "param_index": pi, "value": v})
              for pi, v in ((69, 0.0), (47, 0.0), (31, 0.0), (39, 0.0))]  # no arp/gate/fx
     cmds += [("plugins.setParamValue", {"plugin_index": NOISE, "param_index": pi, "value": v})
